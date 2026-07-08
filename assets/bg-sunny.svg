@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 1440" preserveAspectRatio="xMidYMid slice">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#00a8f6"/><stop offset=".38" stop-color="#83e5ff"/><stop offset=".62" stop-color="#dffcff"/><stop offset="1" stop-color="#ffe8c0"/></linearGradient>
+    <linearGradient id="sea" x1="0" x2="1"><stop stop-color="#33d6e7"/><stop offset=".55" stop-color="#05b7d4"/><stop offset="1" stop-color="#87f1de"/></linearGradient>
+    <linearGradient id="sand" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#fff3d5"/><stop offset="1" stop-color="#f9d79b"/></linearGradient>
+    <filter id="blur"><feGaussianBlur stdDeviation="8"/></filter>
+  </defs>
+  <rect width="720" height="1440" fill="url(#sky)"/>
+  <circle cx="118" cy="146" r="86" fill="#fff3a6" opacity=".9"/>
+  <circle cx="118" cy="146" r="145" fill="#fff3a6" opacity=".18"/>
+  <g fill="#fff" opacity=".86" filter="url(#blur)">
+    <ellipse cx="170" cy="360" rx="145" ry="30"/><ellipse cx="260" cy="350" rx="90" ry="36"/><ellipse cx="520" cy="430" rx="115" ry="28"/><ellipse cx="610" cy="420" rx="60" ry="24"/>
+  </g>
+  <path d="M0 660 C150 620 270 670 430 635 C560 608 640 628 720 606 V930 H0Z" fill="url(#sea)"/>
+  <path d="M0 835 C170 790 320 845 510 800 C610 776 670 790 720 776 V1440 H0Z" fill="url(#sand)"/>
+  <path d="M0 880 C160 830 295 885 480 848 C585 826 660 838 720 818" fill="none" stroke="#ffffff" stroke-width="18" opacity=".75"/>
+  <path d="M0 713 C155 680 275 720 430 696 C550 677 640 690 720 668" fill="none" stroke="#dfffff" stroke-width="4" opacity=".7"/>
+  <g opacity=".36" fill="none" stroke="#fff" stroke-width="2"><path d="M70 765c70 18 120 18 190 0"/><path d="M300 736c90 18 160 18 250 0"/><path d="M120 815c85 15 145 14 230-2"/></g>
+  <g transform="translate(592 178) rotate(15)">
+    <path d="M18 18 C60 70 80 180 69 330" stroke="#6a3d21" stroke-width="15" stroke-linecap="round" fill="none"/>
+    <g fill="#158a45"><path d="M28 26 C-70 0 -125 42 -172 98 C-80 89 -20 67 28 26"/><path d="M35 28 C-20 -58 -105 -76 -180 -58 C-98 -14 -36 16 35 28"/><path d="M42 24 C118 -36 180 -33 248 -1 C162 20 96 28 42 24"/><path d="M40 32 C120 48 174 94 214 164 C126 126 78 88 40 32"/><path d="M30 36 C-42 54 -95 101 -132 166 C-58 132 5 90 30 36"/></g>
+  </g>
+  <g transform="translate(610 1050) scale(.9)" opacity=".72"><rect x="-36" y="42" width="126" height="12" rx="6" fill="#b8894b"/><path d="M30 0 L130 68 H-70Z" fill="#fff2d3"/><path d="M30 0 L32 112" stroke="#7c5730" stroke-width="7"/></g>
+  <rect width="720" height="1440" fill="url(#sky)" opacity=".03"/>
+</svg>
