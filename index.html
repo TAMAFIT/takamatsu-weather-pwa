@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#1666d8" />
+  <meta name="description" content="高松市の1週間・3時間ごとの天気を確認し、外出・移動・登山判断を補助するPWAです。" />
+  <title>高松市 天気ダッシュボード</title>
+  <link rel="manifest" href="./manifest.webmanifest" />
+  <link rel="icon" href="./icons/icon.svg" type="image/svg+xml" />
+  <link rel="apple-touch-icon" href="./icons/icon.svg" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-title" content="高松天気" />
+  <link rel="stylesheet" href="./style.css" />
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <div class="brand-row">
+        <div class="brand-icon" aria-hidden="true">☁️</div>
+        <div>
+          <h1>高松市 天気ダッシュボード</h1>
+          <p>1週間・3時間ごとの簡易予報</p>
+        </div>
+      </div>
+      <div class="control-row">
+        <div class="location-label"><span aria-hidden="true">📍</span><strong id="locationName">高松市</strong></div>
+        <div class="update-area">
+          <span id="updatedAt" class="updated-at">未取得</span>
+          <button id="refreshButton" class="refresh-button" type="button"><span aria-hidden="true">↻</span> 更新する</button>
+        </div>
+      </div>
+      <div class="connection-row"><span id="clockText">--:--</span><span id="networkStatus">オンライン</span></div>
+    </header>
+
+    <main>
+      <section class="summary-card card" aria-labelledby="summaryTitle">
+        <div class="summary-left">
+          <p id="summaryTitle" class="section-kicker">現在の天気</p>
+          <div id="currentIcon" class="big-weather-icon" aria-hidden="true">☁️</div>
+        </div>
+        <div class="summary-main">
+          <div id="currentWeather" class="weather-name">取得待ち</div>
+          <div id="currentTemp" class="temperature-now">--℃</div>
+        </div>
+        <div class="summary-meta">
+          <div class="meta-line"><span aria-hidden="true">🌡️</span><span id="highLow">最高--℃ / 最低--℃</span></div>
+          <div class="meta-line risk-line"><span aria-hidden="true">☂️</span><span>今日の雨リスク</span><span id="todayRisk" class="risk-badge risk-mid">--</span></div>
+        </div>
+        <div class="summary-comment"><span aria-hidden="true">💬</span><span id="summaryComment">更新ボタンで最新データを取得します。</span></div>
+      </section>
+
+      <section class="section weekly-section" aria-labelledby="weeklyTitle">
+        <div class="section-heading"><h2 id="weeklyTitle">1週間の予報</h2><span class="section-note">横スクロール</span></div>
+        <div id="weeklyList" class="weekly-list" role="listbox" aria-label="日別予報">
+          <div class="skeleton-card"></div><div class="skeleton-card"></div><div class="skeleton-card"></div>
+        </div>
+      </section>
+
+      <section class="section hourly-section" aria-labelledby="hourlyTitle">
+        <div class="section-heading"><h2 id="hourlyTitle">今日の3時間ごとの予報</h2><span id="selectedDateText" class="section-note">--</span></div>
+        <div class="hourly-table-wrap card">
+          <table class="hourly-table">
+            <thead><tr><th>時刻</th><th>天気</th><th>気温</th><th>降水確率</th><th>降水量</th><th>風（向き・速さ）</th><th>雨リスク</th></tr></thead>
+            <tbody id="hourlyTableBody"><tr><td colspan="7" class="empty-cell">更新ボタンで取得します。</td></tr></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="advice-card card" aria-labelledby="adviceTitle">
+        <div class="advice-header"><span class="advice-icon" aria-hidden="true">📋</span><h2 id="adviceTitle">今日の行動アドバイス</h2></div>
+        <ul id="adviceList" class="advice-list">
+          <li>午前・午後の雨リスクを見て、外出判断を補助します。</li>
+          <li>降水確率だけでなく、降水量と風も合わせて判定します。</li>
+          <li>日山に行く前は、出発直前にもう一度更新してください。</li>
+        </ul>
+      </section>
+
+      <section id="installCard" class="install-card card" hidden>
+        <div><strong>ホーム画面に追加できます</strong><p id="installHint">Androidはインストール、iPhoneはSafariの共有から「ホーム画面に追加」。</p></div>
+        <button id="installButton" class="install-button" type="button" hidden>インストール</button>
+      </section>
+
+      <footer class="footer-note">
+        <p>天気データ：<a href="https://open-meteo.com/" target="_blank" rel="noreferrer">Open-Meteo</a></p>
+        <p>個人用の判断補助です。警報・雷雨時は気象庁などの公式情報も確認してください。</p>
+      </footer>
+    </main>
+  </div>
+
+  <template id="dailyCardTemplate">
+    <button class="daily-card" type="button" role="option">
+      <span class="day-label"></span>
+      <span class="date-label"></span>
+      <span class="daily-icon" aria-hidden="true"></span>
+      <span class="daily-weather"></span>
+      <span class="daily-temp"><span class="temp-high"></span> / <span class="temp-low"></span>℃</span>
+      <span class="risk-badge daily-risk"></span>
+    </button>
+  </template>
+
+  <script src="./app.js" defer></script>
+</body>
+</html>
