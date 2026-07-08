@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 1440" preserveAspectRatio="xMidYMid slice">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#dcebf3"/><stop offset=".42" stop-color="#edf7fb"/><stop offset=".68" stop-color="#d8f6f3"/><stop offset="1" stop-color="#f5ead8"/></linearGradient>
+    <linearGradient id="sea" x1="0" x2="1"><stop stop-color="#aee8eb"/><stop offset=".55" stop-color="#88d8df"/><stop offset="1" stop-color="#c7f4ed"/></linearGradient>
+    <linearGradient id="sand" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#fff6e7"/><stop offset="1" stop-color="#ead6b8"/></linearGradient>
+    <filter id="blur"><feGaussianBlur stdDeviation="10"/></filter>
+  </defs>
+  <rect width="720" height="1440" fill="url(#sky)"/>
+  <g fill="#fff" opacity=".64" filter="url(#blur)"><ellipse cx="150" cy="160" rx="210" ry="64"/><ellipse cx="430" cy="230" rx="260" ry="72"/><ellipse cx="230" cy="410" rx="170" ry="55"/><ellipse cx="560" cy="500" rx="180" ry="45"/></g>
+  <g fill="#c8d7e2" opacity=".28" filter="url(#blur)"><ellipse cx="350" cy="170" rx="260" ry="58"/><ellipse cx="210" cy="320" rx="210" ry="48"/></g>
+  <path d="M0 680 C150 642 286 687 440 652 C565 624 642 640 720 620 V940 H0Z" fill="url(#sea)"/>
+  <path d="M0 845 C170 803 318 855 500 810 C602 785 675 800 720 782 V1440 H0Z" fill="url(#sand)"/>
+  <path d="M0 888 C152 836 294 895 474 856 C590 832 660 842 720 824" fill="none" stroke="#fff" stroke-width="17" opacity=".7"/>
+  <g transform="translate(594 260) rotate(16)">
+    <path d="M18 18 C55 82 76 188 65 335" stroke="#75502e" stroke-width="14" stroke-linecap="round" fill="none" opacity=".75"/>
+    <g fill="#2f9c61" opacity=".82"><path d="M28 26 C-68 6 -124 46 -172 100 C-78 92 -20 68 28 26"/><path d="M35 28 C-12 -48 -92 -72 -172 -50 C-96 -12 -36 16 35 28"/><path d="M42 24 C112 -28 180 -22 244 7 C162 25 96 28 42 24"/><path d="M40 32 C120 52 176 98 214 160 C130 128 76 88 40 32"/></g>
+  </g>
+  <g transform="translate(604 1058) scale(.82)" opacity=".48"><rect x="-36" y="42" width="126" height="12" rx="6" fill="#a37b4a"/><path d="M30 0 L130 68 H-70Z" fill="#fff"/><path d="M30 0 L32 112" stroke="#7c5730" stroke-width="7"/></g>
+</svg>
