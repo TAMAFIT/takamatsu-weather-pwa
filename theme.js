@@ -26,14 +26,17 @@
   const icon = document.getElementById('heroIcon');
   const title = document.getElementById('mainTitle');
   const rain = document.getElementById('rainLevel');
+  const selectedDate = document.getElementById('selectedDate');
 
   function applyTheme() {
     const text = [icon?.textContent, title?.textContent, rain?.textContent].join(' ');
+    const dateText = selectedDate?.textContent || '';
+    const isTodayView = dateText.includes('今日');
     body.classList.remove('theme-ocean', 'theme-sunny', 'theme-cloudy', 'theme-rain', 'theme-night');
     hero?.classList.remove('theme-sunny', 'theme-cloudy', 'theme-rain');
 
     const hour = Number(new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Tokyo', hour: '2-digit', hour12: false }).format(new Date()));
-    if (hour >= 18 || hour <= 4) {
+    if (isTodayView && (hour >= 18 || hour <= 4)) {
       body.classList.add('theme-night');
       return;
     }
@@ -56,7 +59,7 @@
   }
 
   const observer = new MutationObserver(applyTheme);
-  [icon, title, rain].filter(Boolean).forEach(el => observer.observe(el, { childList: true, characterData: true, subtree: true }));
+  [icon, title, rain, selectedDate].filter(Boolean).forEach(el => observer.observe(el, { childList: true, characterData: true, subtree: true }));
   document.addEventListener('DOMContentLoaded', applyTheme);
   setTimeout(applyTheme, 400);
   setTimeout(applyTheme, 1600);
