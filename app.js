@@ -1,6 +1,6 @@
 (() => {
   'use strict';
-  const CFG={lat:34.3428,lon:134.0466,marineLat:34.35,marineLon:134.05,tz:'Asia/Tokyo',days:16,startHour:9,endHour:17,cacheKey:'takamatsu-sea-weather:v10-ui6-5',logKey:'takamatsu-sea-weather:logs',appVersion:'v6.5-auto-verify',historyKey:'takamatsu-sea-weather:forecast-history-v1',autoKey:'takamatsu-sea-weather:auto-verification-v1',legacyCacheKeys:['takamatsu-sea-weather:v10-ui6-2-1','takamatsu-sea-weather:v10-ui6-2','takamatsu-sea-weather:v10-ui6-1','takamatsu-sea-weather:v10-ui6','takamatsu-sea-weather:v10-ui5','takamatsu-sea-weather:v10-ui4','takamatsu-sea-weather:v2-1:last-success']};
+  const CFG={lat:34.3428,lon:134.0466,marineLat:34.35,marineLon:134.05,tz:'Asia/Tokyo',days:16,startHour:9,endHour:17,cacheKey:'takamatsu-sea-weather:v10-ui6-5-2',logKey:'takamatsu-sea-weather:logs',appVersion:'v6.5.2-temp-plan-a',historyKey:'takamatsu-sea-weather:forecast-history-v1',autoKey:'takamatsu-sea-weather:auto-verification-v1',legacyCacheKeys:['takamatsu-sea-weather:v10-ui6-2-1','takamatsu-sea-weather:v10-ui6-2','takamatsu-sea-weather:v10-ui6-1','takamatsu-sea-weather:v10-ui6','takamatsu-sea-weather:v10-ui5','takamatsu-sea-weather:v10-ui4','takamatsu-sea-weather:v2-1:last-success']};
   const state={selectedDate:null,bundle:null,status:{forecast:'未取得',jma:'未取得',marine:'未取得',amedas:'未取得',satellite:'未取得',runs:'未取得'}};
   const nativeFetch=window.fetch.bind(window);
   window.fetch=async(input,init)=>{
@@ -111,7 +111,19 @@
       return merged;
     });
     const byDate=new Map((detail.daily||[]).map(r=>[r.date,r]));
-    const daily=(base.daily||[]).map(r=>({...r,...(byDate.get(r.date)||{})}));
+    const daily=(base.daily||[]).map(r=>{
+      const d=byDate.get(r.date);
+      if(!d)return r;
+      const merged={...r};
+      for(const [k,v] of Object.entries(d)){
+        if(k==='date')continue;
+        if(v===undefined||v===null)continue;
+        // 追加API側は気温を持たないことがあるため、0/0℃で本体の気温を上書きしない
+        if((k==='high'||k==='low')&&Number(v)===0&&Number(r[k])>0)continue;
+        merged[k]=v;
+      }
+      return merged;
+    });
     return{hourly,daily};
   }
   async function fetchJma(){const hourly=['temperature_2m','relative_humidity_2m','precipitation','weather_code','cloud_cover','sunshine_duration','shortwave_radiation','wind_speed_10m'].join(',');const daily=['weather_code','temperature_2m_max','temperature_2m_min','precipitation_sum','wind_speed_10m_max','sunshine_duration','shortwave_radiation_sum'].join(',');const qs=new URLSearchParams({latitude:CFG.lat,longitude:CFG.lon,timezone:CFG.tz,forecast_days:'11',hourly,daily});const res=await fetch(`https://api.open-meteo.com/v1/jma?${qs}`,{cache:'no-store'});if(!res.ok)throw new Error(`jma ${res.status}`);return normalizeForecast(await res.json())}
@@ -196,7 +208,7 @@
     const series=maps.map((r,i)=>{if(r.status!=='fulfilled')return null;const obs=r.value?.[best.code];if(!obs)return null;return{time:stamps[i].date.toISOString(),key:stamps[i].key,sun1h:valueOf(obs.sun1h),rain1h:valueOf(obs.precipitation1h),temp:valueOf(obs.temp),humidity:valueOf(obs.humidity),wind:valueOf(obs.wind)}}).filter(Boolean).reverse();
     return{station:best.meta.kjName||best.meta.enName||best.code,timeKey:key,sun1h:valueOf(best.obs.sun1h),rain1h:valueOf(best.obs.precipitation1h),temp:valueOf(best.obs.temp),humidity:valueOf(best.obs.humidity),wind:valueOf(best.obs.wind),series}
   }
-  function normalizeForecast(j){const h=j.hourly||{},d=j.daily||{};return{hourly:(h.time||[]).map((time,i)=>{const code=number(h.weather_code?.[i],3);return{time,date:time.slice(0,10),hour:Number(time.slice(11,13)),temp:round(h.temperature_2m?.[i],1),humidity:h.relative_humidity_2m?.[i]??null,rainProb:h.precipitation_probability?.[i]??null,rain:round(h.precipitation?.[i],1)||0,code,weather:weatherText(code),icon:weatherIcon(code),cloud:h.cloud_cover?.[i]??null,cloudLow:h.cloud_cover_low?.[i]??null,cloudMid:h.cloud_cover_mid?.[i]??null,cloudHigh:h.cloud_cover_high?.[i]??null,sunMin:h.sunshine_duration?Math.round((h.sunshine_duration[i]||0)/60):null,radiation:h.shortwave_radiation?Math.round(h.shortwave_radiation[i]||0):null,uv:h.uv_index?round(h.uv_index[i],1):null,wind:round(h.wind_speed_10m?.[i],1)||0,gust:round(h.wind_gusts_10m?.[i],1)}}),daily:(d.time||[]).map((date,i)=>{const code=number(d.weather_code?.[i],3);return{date,code,icon:weatherIcon(code),high:Math.round(d.temperature_2m_max?.[i]||0),low:Math.round(d.temperature_2m_min?.[i]||0)}})}}
+  function normalizeForecast(j){const h=j.hourly||{},d=j.daily||{};return{hourly:(h.time||[]).map((time,i)=>{const code=number(h.weather_code?.[i],3);return{time,date:time.slice(0,10),hour:Number(time.slice(11,13)),temp:round(h.temperature_2m?.[i],1),humidity:h.relative_humidity_2m?.[i]??null,rainProb:h.precipitation_probability?.[i]??null,rain:round(h.precipitation?.[i],1)||0,code,weather:weatherText(code),icon:weatherIcon(code),cloud:h.cloud_cover?.[i]??null,cloudLow:h.cloud_cover_low?.[i]??null,cloudMid:h.cloud_cover_mid?.[i]??null,cloudHigh:h.cloud_cover_high?.[i]??null,sunMin:h.sunshine_duration?Math.round((h.sunshine_duration[i]||0)/60):null,radiation:h.shortwave_radiation?Math.round(h.shortwave_radiation[i]||0):null,uv:h.uv_index?round(h.uv_index[i],1):null,wind:round(h.wind_speed_10m?.[i],1)||0,gust:round(h.wind_gusts_10m?.[i],1)}}),daily:(d.time||[]).map((date,i)=>{const code=number(d.weather_code?.[i],3);const hi=Number(d.temperature_2m_max?.[i]);const lo=Number(d.temperature_2m_min?.[i]);return{date,code,icon:weatherIcon(code),high:Number.isFinite(hi)?Math.round(hi):null,low:Number.isFinite(lo)?Math.round(lo):null}})}}
   function renderAll(note=''){const b=state.bundle;if(!b?.forecast?.hourly?.length)return;const selected=state.selectedDate||todayKey();
     state.status=normalizeStatus(b.status||state.status);
     const baseRows=targetRows(b.forecast.hourly,selected),jmaRows=b.jma?targetRows(b.jma.hourly,selected):[],marineRows=b.marine?targetRows(b.marine.hourly,selected):[],satRows=b.satellite?targetRows(b.satellite.hourly,selected):[],runRows=b.runs?targetRows(b.runs.hourly,selected):[];
@@ -204,6 +216,7 @@
     $('#hero').classList.remove('great','good','ok','bad');$('#hero').classList.add(r.gradeKey);applyBgTheme(r);
     text('selectedDate',isToday(selected)?`今日 ${dateLabel(selected)}`:`${dateLabel(selected)} の判定`);
     text('gradeMark',r.symbol);text('mainTitle',r.title);text('mainReason',note||r.reason);text('heroIcon',r.icon);
+    text('tempSummary',heroTempSummary(selected,b.forecast.daily,baseRows));
     text('sunnyHours',`${r.goodHours}h`);text('tanLevel',r.tanLevel);text('rainLevel',r.rainLevel);text('seaLevel',r.marineLabel);text('bestTime',r.bestTime||'狙い目なし');
     text('avgCloud',`${Math.round(r.cloudAvg)}%`);text('sunTotal',`${r.sunHours}h`);text('uvMax',fmt(r.uvMax));text('rainRisk',r.rainLevel);text('marineRisk',r.marineLabel);text('confidence',r.confidence);
     text('compareNote',r.compareNote);text('satSignal',r.satLabel);text('amedasTrend',r.amedasTrend);
@@ -388,11 +401,39 @@
     $('#hourList').innerHTML=hours.map(h=>`<article class="hour ${h.gradeKey}">
       <div class="hourTime"><strong>${pad(h.hour)}:00</strong></div>
       <div class="hourWeatherIcon" aria-hidden="true"><img src="${hourIconSrc(h)}" alt="" /></div>
-      <div class="hourMain"><b>${h.label}</b><small>${escapeHtml(skyLabel(h))}</small></div>
+      <div class="hourMain"><b>${h.label}</b><small>${escapeHtml(skyLabel(h))}</small><small class="hourTemp">${hourTempText(h)}</small></div>
       <div class="hourChips"><span>雲 ${pct(h.cloud)}</span><span>日照 ${minute(h.sunMin)}</span><span>UV ${fmt(h.uv)}</span><span>雨 ${pct(h.rainProb)}</span></div>
     </article>`).join('')
   }
-  function renderDays(days){const root=$('#dayStrip');text('dayCount',`${days.length}日分`);root.innerHTML=days.map(day=>{const rows=targetRows(state.bundle.forecast.hourly,day.date),jmaRows=state.bundle.jma?targetRows(state.bundle.jma.hourly,day.date):[],marineRows=state.bundle.marine?targetRows(state.bundle.marine.hourly,day.date):[],r=judgeDay(rows,jmaRows,marineRows,state.bundle.amedas,day.date);return`<button class="day ${r.gradeKey} ${day.date===state.selectedDate?'active':''}" type="button" data-date="${day.date}"><span>${isToday(day.date)?'今日':weekday(day.date)}</span><b>${shortDate(day.date)}</b><em>${r.icon}</em><strong>海${r.symbol}</strong><small>${day.high}/${day.low}℃</small></button>`}).join('');root.querySelectorAll('.day').forEach(btn=>btn.addEventListener('click',()=>{state.selectedDate=btn.dataset.date;renderAll();btn.scrollIntoView({behavior:'smooth',block:'nearest',inline:'center'})}))}
+  function hourTempText(h){
+    const t=Number(h?.temp);
+    return Number.isFinite(t)?`${Math.round(t)}℃`:'--℃';
+  }
+  function heroTempSummary(selected,daily,rows=[]){
+    const day=(daily||[]).find(d=>d.date===selected)||{};
+    let hi=Number(day.high),lo=Number(day.low);
+    const temps=(rows||[]).map(r=>Number(r.temp)).filter(Number.isFinite);
+    const invalid=!Number.isFinite(hi)||!Number.isFinite(lo)||(hi===0&&lo===0);
+    if(invalid&&temps.length){hi=Math.round(Math.max(...temps));lo=Math.round(Math.min(...temps));}
+    const range=Number.isFinite(hi)&&Number.isFinite(lo)?`最高${Math.round(hi)}℃ / 最低${Math.round(lo)}℃`:'気温 --/--℃';
+    if(isToday(selected)){
+      const nowHour=currentHour();
+      const nearest=(rows||[]).slice().sort((a,b)=>Math.abs(a.hour-nowHour)-Math.abs(b.hour-nowHour))[0];
+      const nowT=Number(nearest?.temp);
+      if(Number.isFinite(nowT))return`現在${Math.round(nowT)}℃　${range}`;
+    }
+    return range;
+  }
+  function renderDays(days){const root=$('#dayStrip');text('dayCount',`${days.length}日分`);root.innerHTML=days.map(day=>{const rows=targetRows(state.bundle.forecast.hourly,day.date),jmaRows=state.bundle.jma?targetRows(state.bundle.jma.hourly,day.date):[],marineRows=state.bundle.marine?targetRows(state.bundle.marine.hourly,day.date):[],r=judgeDay(rows,jmaRows,marineRows,state.bundle.amedas,day.date);const t=dayTemp(day,rows);return`<button class="day ${r.gradeKey} ${day.date===state.selectedDate?'active':''}" type="button" data-date="${day.date}"><span>${isToday(day.date)?'今日':weekday(day.date)}</span><b>${shortDate(day.date)}</b><em>${r.icon}</em><strong>海${r.symbol}</strong><small>${t}</small></button>`}).join('');root.querySelectorAll('.day').forEach(btn=>btn.addEventListener('click',()=>{state.selectedDate=btn.dataset.date;renderAll();btn.scrollIntoView({behavior:'smooth',block:'nearest',inline:'center'})}))}
+  function dayTemp(day,rows=[]){
+    let hi=Number(day?.high),lo=Number(day?.low);
+    const invalid=!Number.isFinite(hi)||!Number.isFinite(lo)||(hi===0&&lo===0);
+    if(invalid){
+      const temps=(rows||[]).map(r=>Number(r.temp)).filter(Number.isFinite);
+      if(temps.length){hi=Math.round(Math.max(...temps));lo=Math.round(Math.min(...temps));}
+    }
+    return Number.isFinite(hi)&&Number.isFinite(lo)?`${hi}/${lo}℃`:'--/--℃';
+  }
   function updateStatus(){const s=normalizeStatus(state.status||{});text('sourceForecast',s.forecast);text('sourceJma',s.jma);text('sourceMarine',s.marine);text('sourceAmedas',s.amedas);text('sourceSatellite',s.satellite);text('sourceRuns',s.runs);text('updatedAt',state.bundle?.updatedAt?new Date(state.bundle.updatedAt).toLocaleString('ja-JP',{hour:'2-digit',minute:'2-digit'}):'未取得')}
   function analyzeSatellite(rows,selectedDate,status){
     if(!isToday(selectedDate))return{level:'対象外',label:'当日確認',avg:null,note:'衛星日射は当日確認用。'};
@@ -769,6 +810,7 @@
         confidence:document.getElementById('confidence')?.textContent||'',
         satSignal:document.getElementById('satSignal')?.textContent||'',
         amedasTrend:document.getElementById('amedasTrend')?.textContent||'',
+        tempSummary:document.getElementById('tempSummary')?.textContent||'',
         compareNote:document.getElementById('compareNote')?.textContent||''
       },
       sampleRows,
