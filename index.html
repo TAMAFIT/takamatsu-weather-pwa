@@ -12,9 +12,10 @@
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="default" />
   <meta name="apple-mobile-web-app-title" content="高松天気" />
+  <link rel="preload" href="./assets/bg-sunny.webp" as="image" />
   <link rel="stylesheet" href="./style.css" />
 </head>
-<body class="theme-ocean">
+<body class="theme-sunny">
   <div class="app" id="app">
     <header class="header">
       <div>
@@ -26,7 +27,6 @@
 
     <main>
       <section class="hero" id="hero">
-        <div class="resortDecor" aria-hidden="true"><span class="sunOrb"></span><span class="palm">🌴</span></div>
         <div class="heroTop">
           <div>
             <p id="selectedDate" class="dateLabel">--</p>
@@ -59,6 +59,5 @@
   <dialog id="logDialog" class="logDialog"><form method="dialog" id="logForm"><h3>実際どうだった？</h3><label>空の状態<select id="skySelect"><option value="晴れ">晴れ</option><option value="薄曇り">薄曇り</option><option value="曇り">曇り</option><option value="雨">雨</option></select></label><label>海・日焼け結果<select id="resultSelect"><option value="行ってよかった">行ってよかった</option><option value="微妙">微妙</option><option value="やめて正解">やめて正解</option><option value="外れた">外れた</option></select></label><label>メモ<textarea id="memoInput" rows="3" placeholder="例：晴れ予報だったが雲が多かった"></textarea></label><div class="dialogActions"><button value="cancel" type="button" id="closeLogBtn">閉じる</button><button value="default" type="submit">保存</button></div></form></dialog>
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
   <script src="./app.js" defer></script>
-  <script src="./theme.js" defer></script>
 </body>
 </html>
