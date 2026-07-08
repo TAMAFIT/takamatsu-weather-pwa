@@ -1,0 +1,19 @@
+{
+  "name": "高松市 天気ダッシュボード",
+  "short_name": "高松天気",
+  "description": "高松市の天気と雨リスクを確認するPWAです。",
+  "lang": "ja-JP",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f5f7fb",
+  "theme_color": "#1666d8",
+  "icons": [
+    {
+      "src": "./icons/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}
