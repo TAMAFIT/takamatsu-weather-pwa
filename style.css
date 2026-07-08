@@ -139,3 +139,273 @@ h1{margin:0;font-size:25px;line-height:1.08;letter-spacing:-.07em;color:white;fo
   .evidenceGrid{grid-template-columns:repeat(2,minmax(0,1fr))}
   .actions{grid-template-columns:1fr}
 }
+
+
+/* =========================================================
+   v2 mock polish: stronger resort UI, richer hourly cards
+   Logic/API unchanged. These are visual overrides only.
+   ========================================================= */
+
+.header{
+  margin-top:8px!important;
+  margin-bottom:18px!important;
+  color:#fff!important;
+}
+.header .eyebrow,
+.header h1{
+  color:#fff!important;
+  text-shadow:0 3px 16px rgba(0,45,70,.30),0 1px 0 rgba(0,0,0,.12)!important;
+}
+.header h1{
+  font-size:27px!important;
+  letter-spacing:-.075em!important;
+}
+.refresh{
+  color:#fff!important;
+  background:linear-gradient(145deg,rgba(4,36,44,.72),rgba(5,26,48,.90))!important;
+  border:1.5px solid rgba(255,255,255,.58)!important;
+  box-shadow:0 18px 35px rgba(0,35,55,.28),inset 0 1px 0 rgba(255,255,255,.36)!important;
+}
+
+/* Main judgement card: less muddy blue, clearer glass edge */
+.hero{
+  border-radius:32px!important;
+  padding:19px 18px 20px!important;
+  background:
+    linear-gradient(145deg,rgba(0,180,218,.30),rgba(255,255,255,.10) 44%,rgba(255,236,183,.08)),
+    radial-gradient(circle at 78% 18%,rgba(255,255,255,.26),transparent 22%)!important;
+  border:1.5px solid rgba(255,255,255,.48)!important;
+  backdrop-filter:blur(4px)!important;
+  -webkit-backdrop-filter:blur(4px)!important;
+  box-shadow:0 28px 80px rgba(0,55,80,.25), inset 0 1px 0 rgba(255,255,255,.46)!important;
+}
+.theme-rain .hero{
+  background:linear-gradient(145deg,rgba(22,48,72,.36),rgba(255,255,255,.08))!important;
+}
+.theme-night .hero{
+  background:linear-gradient(145deg,rgba(5,14,34,.42),rgba(255,255,255,.08))!important;
+}
+.hero::after{
+  opacity:.70!important;
+}
+
+/* Hero judgement: make main result punchier */
+.heroDate{
+  font-size:18px!important;
+  margin:16px 0 16px!important;
+}
+.gradeMark{
+  width:64px!important;
+  height:64px!important;
+  border-width:8px!important;
+  font-size:38px!important;
+  background:rgba(0,152,191,.18)!important;
+  box-shadow:0 12px 26px rgba(0,64,90,.16), inset 0 1px 0 rgba(255,255,255,.35)!important;
+}
+.hero h2{
+  font-size:58px!important;
+  font-weight:950!important;
+  text-shadow:0 5px 24px rgba(0,45,70,.22)!important;
+}
+.heroIcon{
+  background:rgba(255,255,255,.20)!important;
+  box-shadow:0 12px 24px rgba(0,58,82,.12), inset 0 1px 0 rgba(255,255,255,.35)!important;
+}
+.mainReason{
+  font-size:15px!important;
+  font-weight:950!important;
+  line-height:1.66!important;
+  text-shadow:0 3px 16px rgba(0,40,65,.24)!important;
+}
+
+/* 4 summary tiles: solid, white, tropical, high contrast */
+.quickGrid{
+  gap:8px!important;
+}
+.quickGrid div{
+  background:linear-gradient(180deg,rgba(255,255,255,.88),rgba(255,247,229,.78))!important;
+  border:1.5px solid rgba(255,255,255,.82)!important;
+  border-radius:21px!important;
+  padding:10px 5px 11px!important;
+  box-shadow:0 12px 28px rgba(0,65,85,.13), inset 0 1px 0 rgba(255,255,255,.8)!important;
+  backdrop-filter:blur(8px)!important;
+  -webkit-backdrop-filter:blur(8px)!important;
+}
+.quickGrid small{
+  color:#526274!important;
+  font-size:11px!important;
+  font-weight:950!important;
+}
+.quickGrid strong{
+  font-size:25px!important;
+  color:#008a97!important;
+  text-shadow:0 1px 0 rgba(255,255,255,.55)!important;
+}
+.quickGrid div:nth-child(2) strong{color:#f05a16!important;}
+.quickGrid div:nth-child(3) strong{color:#0b78c7!important;}
+.quickGrid div:nth-child(4) strong{color:#078b9a!important;}
+.tileIcon{
+  font-size:28px!important;
+  filter:drop-shadow(0 5px 8px rgba(0,65,80,.10))!important;
+}
+
+/* Recommendation bar: stronger turquoise like mock */
+.bestBox{
+  margin-top:15px!important;
+  border-radius:19px!important;
+  background:
+    linear-gradient(90deg,rgba(0,183,178,.92),rgba(75,220,230,.87)),
+    radial-gradient(90% 150% at 85% 120%,rgba(255,255,255,.32),transparent 70%)!important;
+  box-shadow:0 12px 28px rgba(0,115,130,.16), inset 0 1px 0 rgba(255,255,255,.42)!important;
+  padding:13px 17px!important;
+}
+.bestBox span{
+  font-size:17px!important;
+}
+.bestBox strong{
+  font-size:27px!important;
+}
+
+/* Cards: more creamy/premium */
+.card{
+  background:linear-gradient(180deg,rgba(255,255,255,.84),rgba(255,250,239,.73))!important;
+  border:1.5px solid rgba(255,255,255,.88)!important;
+  box-shadow:0 22px 54px rgba(1,48,70,.16),inset 0 1px 0 rgba(255,255,255,.65)!important;
+  backdrop-filter:blur(8px)!important;
+  -webkit-backdrop-filter:blur(8px)!important;
+}
+.sectionHead h3{
+  font-size:21px!important;
+  color:#0c2b3a!important;
+}
+.sectionHead span{
+  color:#008a97!important;
+  font-size:13px!important;
+}
+
+/* Hourly list: make it colorful and close to mock */
+.hourList{
+  gap:11px!important;
+}
+.hour{
+  min-height:91px!important;
+  grid-template-columns:58px 66px minmax(0,96px) minmax(0,1fr) 14px!important;
+  border-radius:21px!important;
+  border:1.5px solid rgba(255,255,255,.88)!important;
+  box-shadow:0 12px 28px rgba(2,48,70,.09), inset 0 1px 0 rgba(255,255,255,.75)!important;
+  background:linear-gradient(90deg,rgba(241,255,255,.95),rgba(255,255,255,.88))!important;
+}
+.hour.good{
+  background:linear-gradient(90deg,rgba(217,255,252,.96),rgba(255,255,255,.90))!important;
+  border-color:rgba(104,220,225,.70)!important;
+}
+.hour.great{
+  background:linear-gradient(90deg,rgba(255,247,211,.98),rgba(255,255,255,.92))!important;
+  border-color:rgba(255,209,72,.78)!important;
+}
+.hour.ok{
+  background:linear-gradient(90deg,rgba(255,242,210,.96),rgba(255,255,255,.90))!important;
+  border-color:rgba(255,190,83,.62)!important;
+}
+.hour.bad{
+  background:linear-gradient(90deg,rgba(233,242,249,.96),rgba(255,255,255,.88))!important;
+  border-color:rgba(160,181,198,.58)!important;
+}
+.hour::before{
+  width:24px!important;
+  border-radius:21px 0 0 21px!important;
+  opacity:.95!important;
+}
+.hour.good::before{background:linear-gradient(180deg,#35d6d2,#bffff8)!important;}
+.hour.great::before{background:linear-gradient(180deg,#ffc52d,#fff0a9)!important;}
+.hour.ok::before{background:linear-gradient(180deg,#ff9e2d,#fff0b7)!important;}
+.hour.bad::before{background:linear-gradient(180deg,#8ba0b4,#edf3f7)!important;}
+
+.hourTime{
+  padding-left:6px!important;
+}
+.hourTime strong{
+  font-size:19px!important;
+  color:#008695!important;
+}
+.hour.great .hourTime strong,
+.hour.ok .hourTime strong{
+  color:#f06a10!important;
+}
+.hourWeatherIcon{
+  width:60px!important;
+  height:60px!important;
+  border-radius:50%!important;
+  background:radial-gradient(circle at 36% 30%,#fff8bc,#ffd24e 64%,#ffad18)!important;
+  font-size:34px!important;
+  box-shadow:0 10px 20px rgba(230,138,0,.18), inset 0 1px 0 rgba(255,255,255,.8)!important;
+}
+.hour.good .hourWeatherIcon{
+  background:radial-gradient(circle at 36% 30%,#f5feff,#a6edff 62%,#52c8e6)!important;
+}
+.hour.bad .hourWeatherIcon{
+  background:radial-gradient(circle at 36% 30%,#f7fbff,#d8e3ec 64%,#aebdca)!important;
+}
+.hourMain b{
+  font-size:22px!important;
+  line-height:1.02!important;
+  color:#008c93!important;
+}
+.hour.great .hourMain b,
+.hour.ok .hourMain b{
+  color:#f15c12!important;
+}
+.hourMain small{
+  margin-top:6px!important;
+  font-size:14px!important;
+  color:#536377!important;
+  font-weight:950!important;
+}
+.hourChips{
+  gap:7px!important;
+}
+.hourChips span{
+  background:linear-gradient(180deg,rgba(247,250,252,.96),rgba(238,243,247,.92))!important;
+  color:#536377!important;
+  font-size:11px!important;
+  font-weight:950!important;
+  padding:8px 5px!important;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.8)!important;
+}
+.hour::after{
+  color:#536377!important;
+  font-size:34px!important;
+  opacity:.85!important;
+}
+
+/* Make day strip and evidence fit the new tone */
+.day{
+  background:linear-gradient(180deg,rgba(255,255,255,.88),rgba(255,248,230,.72))!important;
+  border-color:rgba(255,255,255,.88)!important;
+}
+.day.active{
+  background:linear-gradient(180deg,#f0feff,#fff7de)!important;
+}
+.evidenceGrid div,.sourceGrid div{
+  background:linear-gradient(180deg,rgba(255,255,255,.85),rgba(245,251,253,.76))!important;
+  border-color:rgba(255,255,255,.88)!important;
+}
+
+/* small screens */
+@media(max-width:380px){
+  .hero h2{font-size:49px!important}
+  .gradeMark{width:56px!important;height:56px!important;border-width:7px!important}
+  .heroJudgement{grid-template-columns:56px minmax(0,1fr) 54px!important}
+  .heroIcon{width:54px!important;height:54px!important;font-size:32px!important}
+  .quickGrid div{padding:9px 4px!important}
+  .quickGrid strong{font-size:22px!important}
+  .hour{
+    grid-template-columns:52px 52px minmax(0,74px) minmax(0,1fr) 10px!important;
+    gap:6px!important;
+    min-height:86px!important;
+  }
+  .hourWeatherIcon{width:50px!important;height:50px!important;font-size:29px!important}
+  .hourMain b{font-size:18px!important}
+  .hourMain small{font-size:12px!important}
+  .hourChips span{font-size:10px!important;padding:6px 3px!important}
+}

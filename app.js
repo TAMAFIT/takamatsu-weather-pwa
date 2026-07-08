@@ -1,6 +1,6 @@
 (() => {
   'use strict';
-  const CFG={lat:34.3428,lon:134.0466,marineLat:34.35,marineLon:134.05,tz:'Asia/Tokyo',days:16,startHour:9,endHour:17,cacheKey:'takamatsu-sea-weather:v10',logKey:'takamatsu-sea-weather:logs'};
+  const CFG={lat:34.3428,lon:134.0466,marineLat:34.35,marineLon:134.05,tz:'Asia/Tokyo',days:16,startHour:9,endHour:17,cacheKey:'takamatsu-sea-weather:v10-ui2',logKey:'takamatsu-sea-weather:logs'};
   const state={selectedDate:null,bundle:null,status:{forecast:'未取得',jma:'未取得',marine:'未取得',amedas:'未取得'}};
   document.addEventListener('DOMContentLoaded',()=>{try{bindStaticUi();load(false);renderLogs();registerServiceWorker()}catch(e){console.error(e);text('mainTitle','初期化失敗');text('mainReason','画面初期化でエラーが出ました。ファイルを再配置してください。')}});
   function bindStaticUi(){ $('#refreshBtn')?.addEventListener('click',()=>load(true)); $('#openLogBtn')?.addEventListener('click',()=>$('#logDialog')?.showModal()); $('#closeLogBtn')?.addEventListener('click',()=>$('#logDialog')?.close()); $('#logForm')?.addEventListener('submit',e=>{e.preventDefault();saveLog();$('#logDialog')?.close()}); const b='https://www.jma.go.jp/bosai'; $('#nowcastLink').href=`${b}/nowc/#lat:${CFG.lat}/lon:${CFG.lon}/zoom:11/colordepth:normal/elements:hrpns&slmcs`; $('#himawariLink').href=`${b}/map.html#6/${CFG.lat}/${CFG.lon}/&elem=ir&contents=himawari`; }
