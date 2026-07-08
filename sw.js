@@ -1,4 +1,4 @@
-const CACHE_NAME = 'takamatsu-weather-v3';
+const CACHE_NAME = 'takamatsu-weather-v4';
 const FILES = [
   './',
   './index.html',
