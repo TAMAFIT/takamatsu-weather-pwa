@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 1440" preserveAspectRatio="xMidYMid slice">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#041538"/><stop offset=".42" stop-color="#073a72"/><stop offset=".72" stop-color="#0e6f96"/><stop offset="1" stop-color="#081522"/></linearGradient>
+    <linearGradient id="sea" x1="0" x2="1"><stop stop-color="#073d65"/><stop offset=".6" stop-color="#0c5f88"/><stop offset="1" stop-color="#0b2b4a"/></linearGradient>
+    <filter id="blur"><feGaussianBlur stdDeviation="5"/></filter>
+  </defs>
+  <rect width="720" height="1440" fill="url(#sky)"/>
+  <g fill="#fff" opacity=".8"><circle cx="90" cy="90" r="1.6"/><circle cx="170" cy="150" r="1.2"/><circle cx="260" cy="65" r="1.4"/><circle cx="380" cy="120" r="1.1"/><circle cx="520" cy="80" r="1.8"/><circle cx="612" cy="170" r="1.2"/><circle cx="440" cy="260" r="1.4"/><circle cx="120" cy="300" r="1.1"/><circle cx="330" cy="350" r="1.5"/><circle cx="660" cy="340" r="1.3"/></g>
+  <circle cx="115" cy="230" r="54" fill="#f7f3cf" opacity=".9"/>
+  <circle cx="115" cy="230" r="100" fill="#f7f3cf" opacity=".08"/>
+  <path d="M0 735 C160 700 300 740 450 710 C570 686 650 700 720 682 V980 H0Z" fill="url(#sea)"/>
+  <path d="M0 890 C170 848 320 900 500 862 C610 838 675 850 720 832 V1440 H0Z" fill="#071929"/>
+  <path d="M0 880 C170 832 310 888 500 846 C610 826 675 836 720 818" fill="none" stroke="#7ecceb" stroke-width="9" opacity=".38"/>
+  <g opacity=".62" filter="url(#blur)"><path d="M430 835 C480 820 520 818 565 836 C520 852 475 852 430 835" fill="#ffd166"/><path d="M500 900 C545 888 590 890 635 904 C590 918 545 916 500 900" fill="#ffd166"/></g>
+  <g transform="translate(595 210) rotate(13)">
+    <path d="M18 18 C55 82 76 188 65 335" stroke="#1a1511" stroke-width="15" stroke-linecap="round" fill="none"/>
+    <g fill="#09131d"><path d="M28 26 C-68 6 -124 46 -172 100 C-78 92 -20 68 28 26"/><path d="M35 28 C-12 -48 -92 -72 -172 -50 C-96 -12 -36 16 35 28"/><path d="M42 24 C112 -28 180 -22 244 7 C162 25 96 28 42 24"/><path d="M40 32 C120 52 176 98 214 160 C130 128 76 88 40 32"/></g>
+  </g>
+  <g fill="#ffbf5d" opacity=".82"><circle cx="512" cy="900" r="4"/><circle cx="545" cy="882" r="3"/><circle cx="588" cy="905" r="3.5"/><circle cx="620" cy="890" r="3"/></g>
+  <rect width="720" height="1440" fill="#000" opacity=".08"/>
+</svg>
