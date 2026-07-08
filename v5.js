@@ -33,7 +33,8 @@ function injectV5App() {
   section.innerHTML = `
     <div class="v5-hero">
       <div class="v5-kicker"><span id="v5HeroLabel">高松・日差し判定</span><button id="v5Refresh" class="v5-refresh" type="button">更新</button></div>
-      <span id="v5Confidence" class="v5-status-pill">判定中</span>
+      <div class="v5-status-row"><span id="v5Confidence" class="v5-status-pill">判定中</span><span id="v5DatePill" class="v5-date-pill">--</span></div>
+      <div id="v5HeroIcon" class="v5-hero-icon" aria-hidden="true">☀️</div>
       <h2 id="v5Decision">取得中</h2>
       <p id="v5Reason" class="v5-main-reason">最新データを読み込んでいます。</p>
       <div class="v5-quick-grid">
@@ -196,15 +197,18 @@ function renderSelectedDate() {
   const basisRows = isToday(date) ? pickNextHours(bundle.base.hourly, 3) : daylightRows(selectedRows).slice(0, 3);
   const decisions = basisRows.map(row => judgeSun(row));
   const final = summarize(basisRows, decisions, isToday(date) ? readAmedasFromDom() : { sun1h: null, rain1h: null }, isToday(date) ? bundle.next3?.comparison : null);
+  const rep = representativeRow(isToday(date) ? basisRows : selectedRows);
 
   setText('v5HeroLabel', isToday(date) ? '高松・今から判定' : '高松・選択日判定');
+  setText('v5DatePill', isToday(date) ? `今日 ${formatShortDate(date)}` : `${formatShortDate(date)} の判定`);
+  setText('v5HeroIcon', rep?.icon || '☀️');
   setText('v5Decision', final.title);
   setText('v5Reason', final.reason);
   setText('v5Sun', final.sunText);
   setText('v5Rain', final.rainText);
   setText('v5Obs', final.obsText);
   setText('v5Confidence', final.confidence);
-  setText('v5TargetDate', formatDateLabel(date));
+  setText('v5TargetDate', isToday(date) ? `今日 ${formatShortDate(date)}` : `${formatShortDate(date)} の予報`);
   setText('v5CloudAvg', percent(avg(basisRows.map(x => x.cloudCover))));
   setText('v5SunAvg', `${Math.round(avg(basisRows.map(x => x.sunshineMinutes)) || 0)}分`);
   setText('v5UvMax', formatNum(Math.max(...basisRows.map(x => Number(x.uvIndex || 0)))));
@@ -213,6 +217,15 @@ function renderSelectedDate() {
   renderHours(selectedRows);
   renderDays(bundle.base.daily || []);
   renderLogsMini();
+}
+
+function representativeRow(rows) {
+  if (!rows?.length) return null;
+  const rainy = rows.find(r => [95,96,99,61,63,65,80,81,82].includes(Number(r.weatherCode)));
+  if (rainy) return rainy;
+  const daylight = rows.filter(r => r.hour >= 9 && r.hour <= 17);
+  const target = daylight.length ? daylight : rows;
+  return [...target].sort((a, b) => Number(b.shortwaveRadiation || 0) - Number(a.shortwaveRadiation || 0))[0] || target[0];
 }
 
 function rowsForDate(rows, date) {
@@ -270,8 +283,8 @@ function renderHours(rows) {
   root.innerHTML = rows.map(row => {
     const j = judgeSun(row);
     return `<article class="v5-hour">
-      <div><div class="v5-time">${String(row.hour).padStart(2,'0')}:00</div><span class="v5-sub">${escapeHtml(row.weatherText || '-')}</span></div>
-      <div><div class="v5-hour-title">${escapeHtml(j.reason)}</div><div class="v5-hour-meta"><span>雲 ${percent(row.cloudCover)}</span><span>日照 ${minutes(row.sunshineMinutes)}</span><span>UV ${formatNum(row.uvIndex)}</span><span>雨 ${percent(row.precipitationProbability)}</span></div></div>
+      <div><div class="v5-time">${String(row.hour).padStart(2,'0')}:00</div><span class="v5-sub"><span aria-hidden="true">${row.icon || '☁️'}</span>${escapeHtml(row.weatherText || '-')}</span></div>
+      <div><div class="v5-hour-title"><span class="v5-inline-icon" aria-hidden="true">${row.icon || '☁️'}</span>${escapeHtml(j.reason)}</div><div class="v5-hour-meta"><span>雲 ${percent(row.cloudCover)}</span><span>日照 ${minutes(row.sunshineMinutes)}</span><span>UV ${formatNum(row.uvIndex)}</span><span>雨 ${percent(row.precipitationProbability)}</span></div></div>
       <span class="v5-badge ${j.badge}">${escapeHtml(j.label)}</span>
     </article>`;
   }).join('');
@@ -281,7 +294,7 @@ function renderDays(days) {
   const root = document.getElementById('v5Days');
   if (!root) return;
   setText('v5DayCount', `${days.length}日分`);
-  root.innerHTML = days.map((day, i) => `<button class="v5-day ${day.date === v5State.selectedDate ? 'is-active' : ''}" type="button" data-date="${day.date}"><b>${i===0?'今日':weekday(day.date)}</b><span class="emoji">${day.icon || '☁️'}</span><span>${escapeHtml(day.weatherText || '-')}</span><strong>${day.high}/${day.low}℃</strong></button>`).join('');
+  root.innerHTML = days.map((day, i) => `<button class="v5-day ${day.date === v5State.selectedDate ? 'is-active' : ''}" type="button" data-date="${day.date}"><b>${i===0?'今日':weekday(day.date)}</b><span class="v5-day-date">${shortDate(day.date)}</span><span class="emoji">${day.icon || '☁️'}</span><span>${escapeHtml(day.weatherText || '-')}</span><strong>${day.high}/${day.low}℃</strong></button>`).join('');
   root.querySelectorAll('.v5-day').forEach(button => {
     button.addEventListener('click', () => {
       v5State.selectedDate = button.dataset.date;
@@ -320,7 +333,9 @@ function round(v, digits = 0){ const p = 10 ** digits; return Math.round(Number(
 function todayDate(fallback){ const p = new Intl.DateTimeFormat('sv-SE', { timeZone: V5.tz, year:'numeric', month:'2-digit', day:'2-digit' }).formatToParts(new Date()).reduce((a, x) => (a[x.type] = x.value, a), {}); return `${p.year}-${p.month}-${p.day}` || fallback; }
 function isToday(date){ return date === todayDate(date); }
 function weekday(date){ return ['日','月','火','水','木','金','土'][new Date(`${date}T00:00:00+09:00`).getDay()]; }
-function formatDateLabel(date){ if(!date) return '今日'; const d = new Date(`${date}T00:00:00+09:00`); return `${d.getMonth()+1}/${d.getDate()}（${weekday(date)}）`; }
+function shortDate(date){ const d = new Date(`${date}T00:00:00+09:00`); return `${d.getMonth()+1}/${d.getDate()}`; }
+function formatShortDate(date){ if(!date) return '--'; return `${shortDate(date)}（${weekday(date)}）`; }
+function formatDateLabel(date){ if(!date) return '今日'; return `${formatShortDate(date)} の予報`; }
 function escapeHtml(v){ return String(v).replace(/[&<>'"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c])); }
 function weatherText(code){ const map = {0:'快晴',1:'晴れ',2:'一部曇り',3:'曇り',45:'霧',48:'霧氷',51:'弱い霧雨',53:'霧雨',55:'強い霧雨',56:'弱い凍雨',57:'強い凍雨',61:'弱い雨',63:'雨',65:'強い雨',66:'弱い凍雨',67:'強い凍雨',71:'弱い雪',73:'雪',75:'強い雪',77:'雪粒',80:'弱いにわか雨',81:'にわか雨',82:'強いにわか雨',85:'弱いにわか雪',86:'強いにわか雪',95:'雷雨',96:'雷雨・弱い雹',99:'雷雨・強い雹'}; return map[Number(code)] || `不明:${code}`; }
 function weatherIcon(code){ code = Number(code); if (code === 0) return '☀️'; if (code === 1) return '🌤️'; if (code === 2) return '⛅'; if (code === 3) return '☁️'; if ([45,48].includes(code)) return '🌫️'; if ([51,53,55,56,57,61,63,65,66,67,80,81,82].includes(code)) return '🌧️'; if ([71,73,75,77,85,86].includes(code)) return '❄️'; if ([95,96,99].includes(code)) return '⛈️'; return '☁️'; }
