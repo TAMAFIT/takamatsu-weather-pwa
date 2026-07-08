@@ -3,17 +3,25 @@
 const V5 = {
   weatherKey: 'takamatsu-weather:v2-1:last-success',
   logKey: 'takamatsu-weather:sky-logs:v1',
-  tz: 'Asia/Tokyo'
+  tz: 'Asia/Tokyo',
+  lat: 34.3428,
+  lon: 134.0466,
+  maxDays: 16
 };
 
+const v5State = { selectedDate: null, bundle: null };
 let v5Timer = null;
 
 document.addEventListener('DOMContentLoaded', () => {
   injectV5App();
   renderV5WhenReady();
+  extendForecastAndRender();
   document.getElementById('refreshButton')?.addEventListener('click', () => {
     clearTimeout(v5Timer);
-    v5Timer = setTimeout(renderV5WhenReady, 1700);
+    v5Timer = setTimeout(() => {
+      renderV5WhenReady();
+      extendForecastAndRender();
+    }, 1700);
   });
 });
 
@@ -24,7 +32,7 @@ function injectV5App() {
   section.className = 'v5-app';
   section.innerHTML = `
     <div class="v5-hero">
-      <div class="v5-kicker"><span>高松・日差し判定</span><button id="v5Refresh" class="v5-refresh" type="button">更新</button></div>
+      <div class="v5-kicker"><span id="v5HeroLabel">高松・日差し判定</span><button id="v5Refresh" class="v5-refresh" type="button">更新</button></div>
       <span id="v5Confidence" class="v5-status-pill">判定中</span>
       <h2 id="v5Decision">取得中</h2>
       <p id="v5Reason" class="v5-main-reason">最新データを読み込んでいます。</p>
@@ -41,7 +49,7 @@ function injectV5App() {
     </div>
 
     <div class="v5-section">
-      <div class="v5-section-head"><h3>判断材料</h3><span class="v5-section-note">数字だけ確認</span></div>
+      <div class="v5-section-head"><h3>判断材料</h3><span class="v5-section-note">選択日</span></div>
       <div class="v5-evidence">
         <div class="v5-evidence-item"><span>平均雲量</span><strong id="v5CloudAvg">--</strong></div>
         <div class="v5-evidence-item"><span>平均日照</span><strong id="v5SunAvg">--</strong></div>
@@ -51,7 +59,7 @@ function injectV5App() {
     </div>
 
     <div class="v5-section">
-      <div class="v5-section-head"><h3>週間</h3><span class="v5-section-note">ざっくり</span></div>
+      <div class="v5-section-head"><h3>週間</h3><span id="v5DayCount" class="v5-section-note">最大16日</span></div>
       <div id="v5Days" class="v5-forecast-strip"></div>
     </div>
 
@@ -65,10 +73,8 @@ function injectV5App() {
     </div>`;
   main.insertBefore(section, main.firstElementChild);
 
-  const lat = 34.3428;
-  const lon = 134.0466;
-  const nowcast = `https://www.jma.go.jp/bosai/nowc/#lat:${lat}/lon:${lon}/zoom:11/colordepth:normal/elements:hrpns&slmcs`;
-  const himawari = `https://www.jma.go.jp/bosai/map.html#6/${lat}/${lon}/&elem=ir&contents=himawari`;
+  const nowcast = `https://www.jma.go.jp/bosai/nowc/#lat:${V5.lat}/lon:${V5.lon}/zoom:11/colordepth:normal/elements:hrpns&slmcs`;
+  const himawari = `https://www.jma.go.jp/bosai/map.html#6/${V5.lat}/${V5.lon}/&elem=ir&contents=himawari`;
   document.getElementById('v5Nowcast').href = nowcast;
   document.getElementById('v5Himawari').href = himawari;
   document.getElementById('v5Refresh')?.addEventListener('click', () => document.getElementById('refreshButton')?.click());
@@ -94,27 +100,131 @@ function renderV5WhenReady() {
   renderV5(bundle);
 }
 
-function renderV5(bundle) {
-  const hours = pickNextHours(bundle.base.hourly, 6);
-  const now3 = hours.slice(0, 3);
-  const decisions = now3.map(row => judgeSun(row));
-  const final = summarize(now3, decisions, readAmedasFromDom(), bundle.next3?.comparison);
+async function extendForecastAndRender() {
+  try {
+    const base = await fetchExtendedForecast();
+    const current = readBundle() || {};
+    const merged = { ...current, updatedAt: new Date().toISOString(), base };
+    if (merged.base?.hourly?.length) merged.next3 = { ...(merged.next3 || {}), baseHours: pickNextHours(merged.base.hourly, 3) };
+    localStorage.setItem(V5.weatherKey, JSON.stringify(merged));
+    renderV5(merged);
+  } catch (error) {
+    console.warn('extended forecast failed', error);
+  }
+}
 
+async function fetchExtendedForecast() {
+  const hourly = ['temperature_2m','relative_humidity_2m','precipitation_probability','precipitation','weather_code','cloud_cover','cloud_cover_low','cloud_cover_mid','cloud_cover_high','sunshine_duration','shortwave_radiation','uv_index','wind_speed_10m','wind_direction_10m'].join(',');
+  const daily = ['weather_code','temperature_2m_max','temperature_2m_min','precipitation_sum','precipitation_probability_max','wind_speed_10m_max','sunshine_duration','uv_index_max','shortwave_radiation_sum'].join(',');
+  const current = ['temperature_2m','relative_humidity_2m','precipitation','weather_code','cloud_cover','wind_speed_10m','wind_direction_10m'].join(',');
+  const params = new URLSearchParams({ latitude: V5.lat, longitude: V5.lon, timezone: V5.tz, forecast_days: String(V5.maxDays), current, hourly, daily });
+  const res = await fetch(`https://api.open-meteo.com/v1/forecast?${params.toString()}`, { cache: 'no-store' });
+  if (!res.ok) throw new Error(`Open-Meteo Forecast API error: ${res.status}`);
+  return normalizeForecast(await res.json());
+}
+
+function normalizeForecast(json) {
+  const h = json.hourly;
+  const hourly = h.time.map((time, i) => {
+    const row = {
+      source: 'base',
+      time,
+      date: time.slice(0, 10),
+      hour: Number(time.slice(11, 13)),
+      temperature: round(h.temperature_2m?.[i]),
+      humidity: h.relative_humidity_2m?.[i] ?? null,
+      precipitationProbability: h.precipitation_probability?.[i] ?? null,
+      precipitation: round(h.precipitation?.[i] ?? 0, 1),
+      weatherCode: h.weather_code?.[i] ?? 3,
+      cloudCover: h.cloud_cover?.[i] ?? null,
+      cloudCoverLow: h.cloud_cover_low?.[i] ?? null,
+      cloudCoverMid: h.cloud_cover_mid?.[i] ?? null,
+      cloudCoverHigh: h.cloud_cover_high?.[i] ?? null,
+      sunshineMinutes: h.sunshine_duration ? Math.round((h.sunshine_duration[i] || 0) / 60) : null,
+      shortwaveRadiation: h.shortwave_radiation ? Math.round(h.shortwave_radiation[i] || 0) : null,
+      uvIndex: h.uv_index ? round(h.uv_index[i], 1) : null,
+      windSpeed: round(h.wind_speed_10m?.[i] ?? 0),
+      windDirectionDeg: h.wind_direction_10m?.[i]
+    };
+    row.weatherText = weatherText(row.weatherCode);
+    row.icon = weatherIcon(row.weatherCode);
+    return row;
+  });
+  const d = json.daily;
+  const daily = d.time.map((date, i) => ({
+    source: 'base',
+    date,
+    weatherCode: d.weather_code?.[i] ?? 3,
+    weatherText: weatherText(d.weather_code?.[i] ?? 3),
+    icon: weatherIcon(d.weather_code?.[i] ?? 3),
+    high: Math.round(d.temperature_2m_max?.[i] ?? 0),
+    low: Math.round(d.temperature_2m_min?.[i] ?? 0),
+    precipitationSum: round(d.precipitation_sum?.[i] ?? 0, 1),
+    precipitationProbabilityMax: d.precipitation_probability_max?.[i] ?? null,
+    windSpeedMax: round(d.wind_speed_10m_max?.[i] ?? 0),
+    sunshineHours: d.sunshine_duration ? round((d.sunshine_duration[i] || 0) / 3600, 1) : null,
+    uvIndexMax: d.uv_index_max ? round(d.uv_index_max[i], 1) : null,
+    shortwaveRadiationSum: d.shortwave_radiation_sum ? round(d.shortwave_radiation_sum[i], 1) : null
+  }));
+  const c = json.current || {};
+  const current = {
+    source: 'base',
+    time: c.time || new Date().toISOString(),
+    temperature: Math.round(c.temperature_2m ?? hourly[0]?.temperature ?? 0),
+    weatherCode: c.weather_code ?? hourly[0]?.weatherCode ?? 3,
+    precipitation: round(c.precipitation ?? 0, 1),
+    cloudCover: c.cloud_cover ?? null,
+    windSpeed: round(c.wind_speed_10m ?? 0)
+  };
+  current.weatherText = weatherText(current.weatherCode);
+  current.icon = weatherIcon(current.weatherCode);
+  return { source: 'base', current, hourly, daily };
+}
+
+function renderV5(bundle) {
+  v5State.bundle = bundle;
+  const days = bundle.base?.daily || [];
+  if (!v5State.selectedDate || !days.some(d => d.date === v5State.selectedDate)) v5State.selectedDate = todayDate(days[0]?.date);
+  renderSelectedDate();
+}
+
+function renderSelectedDate() {
+  const bundle = v5State.bundle;
+  if (!bundle?.base?.hourly?.length) return;
+  const date = v5State.selectedDate;
+  const selectedRows = rowsForDate(bundle.base.hourly, date);
+  const basisRows = isToday(date) ? pickNextHours(bundle.base.hourly, 3) : daylightRows(selectedRows).slice(0, 3);
+  const decisions = basisRows.map(row => judgeSun(row));
+  const final = summarize(basisRows, decisions, isToday(date) ? readAmedasFromDom() : { sun1h: null, rain1h: null }, isToday(date) ? bundle.next3?.comparison : null);
+
+  setText('v5HeroLabel', isToday(date) ? '高松・今から判定' : '高松・選択日判定');
   setText('v5Decision', final.title);
   setText('v5Reason', final.reason);
   setText('v5Sun', final.sunText);
   setText('v5Rain', final.rainText);
   setText('v5Obs', final.obsText);
   setText('v5Confidence', final.confidence);
-  setText('v5TargetDate', formatDateLabel(now3[0]?.date || bundle.base.daily?.[0]?.date));
-  setText('v5CloudAvg', percent(avg(now3.map(x => x.cloudCover))));
-  setText('v5SunAvg', `${Math.round(avg(now3.map(x => x.sunshineMinutes)) || 0)}分`);
-  setText('v5UvMax', formatNum(Math.max(...now3.map(x => Number(x.uvIndex || 0)))));
+  setText('v5TargetDate', formatDateLabel(date));
+  setText('v5CloudAvg', percent(avg(basisRows.map(x => x.cloudCover))));
+  setText('v5SunAvg', `${Math.round(avg(basisRows.map(x => x.sunshineMinutes)) || 0)}分`);
+  setText('v5UvMax', formatNum(Math.max(...basisRows.map(x => Number(x.uvIndex || 0)))));
   setText('v5AmedasNote', final.amedasNote);
 
-  renderHours(hours);
+  renderHours(selectedRows);
   renderDays(bundle.base.daily || []);
   renderLogsMini();
+}
+
+function rowsForDate(rows, date) {
+  const dayRows = rows.filter(x => x.date === date && [0,3,6,9,12,15,18,21].includes(x.hour));
+  if (!isToday(date)) return dayRows;
+  const next = pickNextHours(rows, 6);
+  return next.length ? next : dayRows;
+}
+
+function daylightRows(rows) {
+  const filtered = rows.filter(x => x.hour >= 9 && x.hour <= 18);
+  return filtered.length ? filtered : rows;
 }
 
 function pickNextHours(rows, count) {
@@ -145,7 +255,7 @@ function summarize(rows, decisions, obs, comparison) {
   const strongObs = obs.sun1h !== null && obs.sun1h >= 0.7;
   const cloudAvg = avg(rows.map(x => x.cloudCover));
   const sunAvg = avg(rows.map(x => x.sunshineMinutes));
-  const confidence = comparison?.agreement ? `一致度 ${comparison.agreement}` : '判定中';
+  const confidence = comparison?.agreement ? `一致度 ${comparison.agreement}` : isToday(v5State.selectedDate) ? '判定中' : '予報のみ';
 
   if (rainRisk) return { title:'今日は微妙', reason:'雨リスク高め。日焼け狙いなら雲画像と実測確認が必要です。', sunText: hasHigh ? '一部可' : '弱い', rainText:'注意', obsText: obsShort(obs), confidence, amedasNote: obsNote(obs) };
   if (noSunObs && !hasHigh) return { title:'曇り寄り', reason:'実測の日照が弱いです。晴れ表示でも準備前に空を確認。', sunText:'弱い', rainText:'低め', obsText:'日照なし', confidence, amedasNote: obsNote(obs) };
@@ -170,7 +280,15 @@ function renderHours(rows) {
 function renderDays(days) {
   const root = document.getElementById('v5Days');
   if (!root) return;
-  root.innerHTML = days.slice(0, 7).map((day, i) => `<button class="v5-day ${i===0?'is-active':''}" type="button"><b>${i===0?'今日':weekday(day.date)}</b><span class="emoji">${day.icon || '☁️'}</span><span>${escapeHtml(day.weatherText || '-')}</span><strong>${day.high}/${day.low}℃</strong></button>`).join('');
+  setText('v5DayCount', `${days.length}日分`);
+  root.innerHTML = days.map((day, i) => `<button class="v5-day ${day.date === v5State.selectedDate ? 'is-active' : ''}" type="button" data-date="${day.date}"><b>${i===0?'今日':weekday(day.date)}</b><span class="emoji">${day.icon || '☁️'}</span><span>${escapeHtml(day.weatherText || '-')}</span><strong>${day.high}/${day.low}℃</strong></button>`).join('');
+  root.querySelectorAll('.v5-day').forEach(button => {
+    button.addEventListener('click', () => {
+      v5State.selectedDate = button.dataset.date;
+      renderSelectedDate();
+      button.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+    });
+  });
 }
 
 function renderLogsMini() {
@@ -187,17 +305,22 @@ function readAmedasFromDom() {
   const rainText = document.getElementById('amedasRain')?.textContent || '';
   return { sun1h: parseNumber(sunText), rain1h: parseNumber(rainText) };
 }
-function obsShort(obs) { if (obs.rain1h && obs.rain1h > 0) return '雨あり'; if (obs.sun1h === null) return '確認中'; if (obs.sun1h <= 0.1) return '日照なし'; if (obs.sun1h >= 0.7) return '日照あり'; return '少し'; }
-function obsNote(obs) { if (obs.rain1h && obs.rain1h > 0) return 'アメダスで降水あり。日焼け目的なら待機寄り。'; if (obs.sun1h === null) return 'アメダス実測を確認中。'; if (obs.sun1h <= 0.1) return '直近1時間の日照ほぼなし。予報より曇り寄りに見ます。'; if (obs.sun1h >= 0.7) return '直近1時間の日照あり。日焼け判断ではプラス材料。'; return '実測日照は少なめ。雲が抜けるかが判断ポイント。'; }
+function obsShort(obs) { if (obs.rain1h && obs.rain1h > 0) return '雨あり'; if (obs.sun1h === null) return isToday(v5State.selectedDate) ? '確認中' : '予報'; if (obs.sun1h <= 0.1) return '日照なし'; if (obs.sun1h >= 0.7) return '日照あり'; return '少し'; }
+function obsNote(obs) { if (!isToday(v5State.selectedDate)) return '未来日は実測なし。予報の雲量・日照・UVで判断します。'; if (obs.rain1h && obs.rain1h > 0) return 'アメダスで降水あり。日焼け目的なら待機寄り。'; if (obs.sun1h === null) return 'アメダス実測を確認中。'; if (obs.sun1h <= 0.1) return '直近1時間の日照ほぼなし。予報より曇り寄りに見ます。'; if (obs.sun1h >= 0.7) return '直近1時間の日照あり。日焼け判断ではプラス材料。'; return '実測日照は少なめ。雲が抜けるかが判断ポイント。'; }
 
 function readBundle(){ try { return JSON.parse(localStorage.getItem(V5.weatherKey)); } catch { return null; } }
 function readLogs(){ try { return JSON.parse(localStorage.getItem(V5.logKey) || '[]'); } catch { return []; } }
-function setText(id, value){ const el = document.getElementById(id); if (el) el.textContent = value; }
+function setText(id, value){ const el = document.getElementById(id); if (!el) return; if (el.tagName === 'DIV' && el.classList.contains('v5-log-mini')) { const p = el.querySelector('p'); if (p) p.textContent = value; else el.textContent = value; } else el.textContent = value; }
 function avg(values){ const nums = values.filter(v => Number.isFinite(Number(v))).map(Number); return nums.length ? nums.reduce((a,b)=>a+b,0)/nums.length : null; }
 function parseNumber(text){ const n = Number(String(text).replace(/[^0-9.\-]/g,'')); return Number.isFinite(n) ? n : null; }
 function percent(v){ return typeof v === 'number' && Number.isFinite(v) ? `${Math.round(v)}%` : '-'; }
 function minutes(v){ return typeof v === 'number' && Number.isFinite(v) ? `${Math.round(v)}分` : '-'; }
 function formatNum(v){ return typeof v === 'number' && Number.isFinite(v) ? String(Math.round(v * 10)/10).replace('.0','') : '-'; }
+function round(v, digits = 0){ const p = 10 ** digits; return Math.round(Number(v) * p) / p; }
+function todayDate(fallback){ const p = new Intl.DateTimeFormat('sv-SE', { timeZone: V5.tz, year:'numeric', month:'2-digit', day:'2-digit' }).formatToParts(new Date()).reduce((a, x) => (a[x.type] = x.value, a), {}); return `${p.year}-${p.month}-${p.day}` || fallback; }
+function isToday(date){ return date === todayDate(date); }
 function weekday(date){ return ['日','月','火','水','木','金','土'][new Date(`${date}T00:00:00+09:00`).getDay()]; }
 function formatDateLabel(date){ if(!date) return '今日'; const d = new Date(`${date}T00:00:00+09:00`); return `${d.getMonth()+1}/${d.getDate()}（${weekday(date)}）`; }
 function escapeHtml(v){ return String(v).replace(/[&<>'"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c])); }
+function weatherText(code){ const map = {0:'快晴',1:'晴れ',2:'一部曇り',3:'曇り',45:'霧',48:'霧氷',51:'弱い霧雨',53:'霧雨',55:'強い霧雨',56:'弱い凍雨',57:'強い凍雨',61:'弱い雨',63:'雨',65:'強い雨',66:'弱い凍雨',67:'強い凍雨',71:'弱い雪',73:'雪',75:'強い雪',77:'雪粒',80:'弱いにわか雨',81:'にわか雨',82:'強いにわか雨',85:'弱いにわか雪',86:'強いにわか雪',95:'雷雨',96:'雷雨・弱い雹',99:'雷雨・強い雹'}; return map[Number(code)] || `不明:${code}`; }
+function weatherIcon(code){ code = Number(code); if (code === 0) return '☀️'; if (code === 1) return '🌤️'; if (code === 2) return '⛅'; if (code === 3) return '☁️'; if ([45,48].includes(code)) return '🌫️'; if ([51,53,55,56,57,61,63,65,66,67,80,81,82].includes(code)) return '🌧️'; if ([71,73,75,77,85,86].includes(code)) return '❄️'; if ([95,96,99].includes(code)) return '⛈️'; return '☁️'; }
