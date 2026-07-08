@@ -1,6 +1,6 @@
 (() => {
   'use strict';
-  const CFG={lat:34.3428,lon:134.0466,marineLat:34.35,marineLon:134.05,tz:'Asia/Tokyo',days:16,startHour:9,endHour:17,cacheKey:'takamatsu-sea-weather:v10-ui6-4-2',logKey:'takamatsu-sea-weather:logs',appVersion:'v6.4.2-polish',historyKey:'takamatsu-sea-weather:forecast-history-v1',legacyCacheKeys:['takamatsu-sea-weather:v10-ui6-2-1','takamatsu-sea-weather:v10-ui6-2','takamatsu-sea-weather:v10-ui6-1','takamatsu-sea-weather:v10-ui6','takamatsu-sea-weather:v10-ui5','takamatsu-sea-weather:v10-ui4','takamatsu-sea-weather:v2-1:last-success']};
+  const CFG={lat:34.3428,lon:134.0466,marineLat:34.35,marineLon:134.05,tz:'Asia/Tokyo',days:16,startHour:9,endHour:17,cacheKey:'takamatsu-sea-weather:v10-ui6-5',logKey:'takamatsu-sea-weather:logs',appVersion:'v6.5-auto-verify',historyKey:'takamatsu-sea-weather:forecast-history-v1',autoKey:'takamatsu-sea-weather:auto-verification-v1',legacyCacheKeys:['takamatsu-sea-weather:v10-ui6-2-1','takamatsu-sea-weather:v10-ui6-2','takamatsu-sea-weather:v10-ui6-1','takamatsu-sea-weather:v10-ui6','takamatsu-sea-weather:v10-ui5','takamatsu-sea-weather:v10-ui4','takamatsu-sea-weather:v2-1:last-success']};
   const state={selectedDate:null,bundle:null,status:{forecast:'未取得',jma:'未取得',marine:'未取得',amedas:'未取得',satellite:'未取得',runs:'未取得'}};
   const nativeFetch=window.fetch.bind(window);
   window.fetch=async(input,init)=>{
@@ -15,7 +15,7 @@
       throw e;
     }
   };
-  document.addEventListener('DOMContentLoaded',()=>{try{bindStaticUi();load(false);renderLogs();registerServiceWorker()}catch(e){console.error(e);text('mainTitle','初期化失敗');text('mainReason','画面初期化でエラーが出ました。ファイルを再配置してください。')}});
+  document.addEventListener('DOMContentLoaded',()=>{try{bindStaticUi();load(false);renderLogs();renderAutoEvaluations();registerServiceWorker()}catch(e){console.error(e);text('mainTitle','初期化失敗');text('mainReason','画面初期化でエラーが出ました。ファイルを再配置してください。')}});
   function bindStaticUi(){ $('#refreshBtn')?.addEventListener('click',()=>load(true)); $('#openLogBtn')?.addEventListener('click',()=>$('#logDialog')?.showModal()); $('#closeLogBtn')?.addEventListener('click',()=>$('#logDialog')?.close()); $('#logForm')?.addEventListener('submit',e=>{e.preventDefault();saveLog();$('#logDialog')?.close()});
     $('#copyDebugBtn')?.addEventListener('click',copyDebugLog);
     $('#saveDebugBtn')?.addEventListener('click',saveDebugLogFile);
@@ -209,9 +209,67 @@
     text('compareNote',r.compareNote);text('satSignal',r.satLabel);text('amedasTrend',r.amedasTrend);
     $('#scoreMeter').style.width=`${Math.max(5,Math.min(100,Math.round(r.score)))}%`;
     renderHours(baseRows.map(row=>judgeHour(row,r.marineByHour.get(row.hour))));
-    renderDays(b.forecast.daily);updateStatus()
+    renderDays(b.forecast.daily);updateStatus();savePredictionSnapshot(selected,r,baseRows,jmaRows,marineRows,satRows);renderAutoEvaluations();runAutoVerification(b).catch(console.warn)
   }
   function targetRows(rows,date){return(rows||[]).filter(r=>r.date===date&&r.hour>=CFG.startHour&&r.hour<=CFG.endHour)}
+  
+  function isRainCode(code){
+    const c=Number(code);
+    return (c>=51&&c<=67)||(c>=80&&c<=82)||(c>=95&&c<=99);
+  }
+  function isSunnyCode(code){
+    const c=Number(code);
+    return c===0||c===1||c===2;
+  }
+  function rainHourPenalty(row){
+    const rainProb=Number.isFinite(Number(row.rainProb))?Number(row.rainProb):((row.rain||0)>0?70:0);
+    const rain=Number(row.rain||0);
+    const sunMin=Number.isFinite(Number(row.sunMin))?Number(row.sunMin):sunFromWeather(row.code,row.radiation);
+    const uv=Number.isFinite(Number(row.uv))?Number(row.uv):0;
+    const codeRain=isRainCode(row.code);
+    if(rain>0.3||codeRain)return -25;
+    if(rain>0.05)return -14;
+    const bright=isSunnyCode(row.code)&&(sunMin>=20||uv>=5);
+    if(rainProb>=80)return bright?-8:-16;
+    if(rainProb>=65)return bright?-6:-12;
+    if(rainProb>=45)return bright?-4:-8;
+    if(rainProb>=30)return -3;
+    return 0;
+  }
+  function rainProfile({baseRows,jmaRows,amedas,selectedDate,sat,rainProbMax,rainAmount}){
+    const baseRainCodes=(baseRows||[]).filter(r=>isRainCode(r.code)).length;
+    const jmaRainCodes=(jmaRows||[]).filter(r=>isRainCode(r.code)).length;
+    const jmaRainAmount=sum((jmaRows||[]).map(r=>r.rain||0));
+    const amedasRain=isToday(selectedDate)&&amedas&&Number(amedas.rain1h)>0;
+    const satStrong=sat?.level==='強'||sat?.level==='中';
+    const clearish=(baseRows||[]).filter(r=>isSunnyCode(r.code)).length>=(baseRows||[]).length/2;
+    const probabilityOnly=rainProbMax>=65&&rainAmount<=0.2&&baseRainCodes===0&&jmaRainAmount<=0.2&&jmaRainCodes<=1&&!amedasRain&&satStrong;
+    const hard=amedasRain||rainAmount>1||baseRainCodes>=2||jmaRainAmount>1||jmaRainCodes>=3;
+    let penalty=0,label='低',note='';
+    if(hard){
+      penalty=rainProbMax>=70||rainAmount>1||amedasRain?-25:-16;
+      label='高';
+      note='雨量・雨天コード・実測雨のいずれかが出ています。';
+    }else if(probabilityOnly){
+      penalty=-6;
+      label='注意';
+      note='降水確率は高めですが、降水量0mm・雨天コードなし・実測雨なし・衛星日射ありのため、にわか雨注意扱いです。';
+    }else if(rainProbMax>=70){
+      penalty=clearish?-12:-18;
+      label='中';
+      note='降水確率は高め。雨量が少なければ短時間判断。';
+    }else if(rainProbMax>=50){
+      penalty=-8;
+      label='中';
+      note='雨の可能性あり。';
+    }else if(rainProbMax>=30){
+      penalty=-4;
+      label='低';
+      note='軽い雨注意。';
+    }
+    return{label,penalty,note,probabilityOnly,hard,baseRainCodes,jmaRainCodes,jmaRainAmount,amedasRain,satStrong};
+  }
+
   function judgeHour(row,marine){
     const cloud = Number.isFinite(Number(row.cloud)) ? Number(row.cloud) : cloudFromWeather(row.code);
     const sunMin = Number.isFinite(Number(row.sunMin)) ? Number(row.sunMin) : sunFromWeather(row.code, row.radiation);
@@ -223,11 +281,11 @@
     if(cloud<=20)score+=30;else if(cloud<=40)score+=24;else if(cloud<=60)score+=15;else if(cloud<=75)score+=5;else score-=8;
     if(sunMin>=50)score+=30;else if(sunMin>=40)score+=24;else if(sunMin>=25)score+=16;else if(sunMin>=10)score+=7;else score-=5;
     if(uv>=7)score+=15;else if(uv>=5)score+=11;else if(uv>=3)score+=6;else if(uv>=1)score+=2;
-    if(rainProb>=65||rain>0.3)score-=25;else if(rainProb>=45)score-=14;else if(rainProb>=30)score-=6;
+    score+=rainHourPenalty({...row,cloud,sunMin,uv,rainProb,rain});
     if(wind>=35)score-=12;else if(wind>=25)score-=6;
     if(marine?.wave>=1.2)score-=10;else if(marine?.wave>=0.8)score-=5;
-    if((row.code===0||row.code===1)&&rainProb<30&&sunMin>=40)score+=6;
-    if(row.code===2&&rainProb<35&&sunMin>=35)score+=3;
+    if((row.code===0||row.code===1)&&rainProb<45&&sunMin>=40)score+=6;
+    if(row.code===2&&rainProb<55&&sunMin>=35)score+=3;
     const gradeKey=score>=68?'great':score>=48?'good':score>=30?'ok':'bad';
     const label=gradeKey==='great'?'最高':gradeKey==='good'?'良い':gradeKey==='ok'?'普通':'弱い';
     return{...row,cloud,sunMin,uv,rainProb,marine,score:clamp(score),gradeKey,label}
@@ -248,20 +306,19 @@
     const sat=analyzeSatellite(satRows,selectedDate,state.status);
     const amedasTrend=analyzeAmedasTrend(amedas,selectedDate,state.status);
     const stability=analyzeRunStability(runRows,selectedDate,state.status);
+    const rainInfo=rainProfile({baseRows,jmaRows,amedas,selectedDate,sat,rainProbMax,rainAmount});
 
     let score=0;
     score+=goodHours*8;
     score+=Math.min(25,sunHours*4);
     score+=uvMax>=7?10:uvMax>=5?7:uvMax>=3?4:0;
     score+=cloudAvg<=30?16:cloudAvg<=45?10:cloudAvg<=60?4:-8;
-    if(rainProbMax>=70||rainAmount>1)score-=25;
-    else if(rainProbMax>=50)score-=14;
-    else if(rainProbMax>=30)score-=6;
+    score+=rainInfo.penalty;
     if(windMax>=35)score-=16;
     else if(windMax>=25)score-=8;
     if(waveMax>=1.2)score-=12;
     else if(waveMax>=0.8)score-=6;
-    if(modelDiff!==null&&modelDiff>=4)score-=8;
+    if(modelDiff!==null&&modelDiff>=4)score-=6;
 
     if(sat.level==='強')score+=10;
     else if(sat.level==='中')score+=4;
@@ -281,33 +338,34 @@
     score=clamp(score);
 
     let gradeKey='bad',symbol='×',title='見送り';
-    if(score>=76&&goodHours>=5&&rainProbMax<35){gradeKey='great';symbol='◎';title='海日和'}
+    if(score>=76&&goodHours>=5&&!rainInfo.hard){gradeKey='great';symbol='◎';title='海日和'}
     else if(score>=58&&goodHours>=3){gradeKey='good';symbol='○';title='行ける'}
-    else if(score>=38||goodHours>=2){gradeKey='ok';symbol='△';title='条件付'}
+    else if(score>=38||goodHours>=2||rainInfo.probabilityOnly){gradeKey='ok';symbol='△';title='条件付'}
 
-    const rainLevel=rainProbMax>=70||rainAmount>1?'高':rainProbMax>=45?'中':'低';
+    const rainLevel=rainInfo.label;
     const tanLevel=sunHours>=5&&uvMax>=5?'高':sunHours>=3&&uvMax>=3?'中':'低';
     const marineLabel=windMax>=35||waveMax>=1.2?'悪い':windMax>=25||waveMax>=0.8?'注意':'良い';
     const confidence=combinedConfidence({modelDiff,stability,sat});
     const bestTime=bestRun(judged);
     const icon=dailyIconByWeather(baseRows,gradeKey,rainLevel);
-    const reason=buildReason(title,rainLevel,marineLabel);
-    const compareNote=buildCompareNote({modelDiff,jmaGood,goodHours,amedas,selectedDate,waveMax,sat,stability,amedasTrend});
+    const reason=buildReason(title,rainLevel,marineLabel,rainInfo);
+    const compareNote=buildCompareNote({modelDiff,jmaGood,goodHours,amedas,selectedDate,waveMax,sat,stability,amedasTrend,rainInfo});
     return{score,gradeKey,symbol,title,icon,reason,goodHours,cloudAvg,sunHours,uvMax,rainLevel,tanLevel,marineLabel,confidence,bestTime,compareNote,marineByHour,satLabel:sat.label,amedasTrend:amedasTrend.label}
   }
-  function buildReason(title,rainLevel,marineLabel){
-    if(title==='海日和')return '日差しあり。雨リスク低め。海・日焼け向き。';
-    if(title==='行ける')return '晴れ間あり。行くならおすすめ時間中心で。';
-    if(title==='条件付')return '晴れ間はあるが不安定。短時間ならあり。';
+  function buildReason(title,rainLevel,marineLabel,rainInfo=null){
+    if(title==='海日和')return rainLevel==='注意'?'日差しあり。にわか雨だけ注意。海・日焼け向き。':'日差しあり。雨リスク低め。海・日焼け向き。';
+    if(title==='行ける')return rainLevel==='注意'?'晴れ間あり。にわか雨注意でおすすめ時間中心。':'晴れ間あり。行くならおすすめ時間中心で。';
+    if(title==='条件付')return rainInfo?.probabilityOnly?'日差しはあるが、にわか雨注意。雲画像確認推奨。':'晴れ間はあるが不安定。短時間ならあり。';
     if(rainLevel==='高'||marineLabel==='悪い')return '雨・風波に注意。海目的なら別日が安全。';
     return '日差し弱め。海目的なら別日が安全。';
   }
-  function buildCompareNote({modelDiff,jmaGood,goodHours,amedas,selectedDate,waveMax,sat,stability,amedasTrend}){
+  function buildCompareNote({modelDiff,jmaGood,goodHours,amedas,selectedDate,waveMax,sat,stability,amedasTrend,rainInfo}){
     const parts=[];
     if(modelDiff===null)parts.push('JMA比較は未取得。');
     else if(modelDiff<=1)parts.push('通常予報とJMAは概ね一致。');
     else if(modelDiff<=3)parts.push(`通常${goodHours}h / JMA${jmaGood}hで少し差。`);
     else parts.push(`通常${goodHours}h / JMA${jmaGood}hで大きく割れています。雲画像確認推奨。`);
+    if(rainInfo?.note)parts.push(rainInfo.note);
     if(sat?.note)parts.push(sat.note);
     else if(sat?.level&&sat.level!=='不明')parts.push(`衛星日射${sat.label}。`);
     if(stability?.note)parts.push(stability.note);
@@ -395,6 +453,174 @@
     return score>=7?'高':score>=4?'中':'低';
   }
   function bestRun(hours){let best=[],cur=[];for(const h of hours){const ok=h.gradeKey==='great'||h.gradeKey==='good';if(ok)cur.push(h);else{if(cur.length>best.length)best=cur;cur=[]}}if(cur.length>best.length)best=cur;return best.length?`${pad(best[0].hour)}:00〜${pad(best[best.length-1].hour+1)}:00`:''}
+  
+  function readAutoStore(){try{return JSON.parse(localStorage.getItem(CFG.autoKey)||'{"items":[]}')}catch{return{items:[]}}}
+  function writeAutoStore(store){try{localStorage.setItem(CFG.autoKey,JSON.stringify({items:(store.items||[]).slice(-120)}))}catch{}}
+  function autoSummaryForDebug(){
+    const items=readAutoStore().items||[];
+    return{count:items.length,evaluated:items.filter(x=>x.evaluation).length,latest:items.slice(-3).map(x=>({date:x.targetDate,title:x.title,savedAt:x.savedAt,evaluation:x.evaluation?.label||null,observed:x.observed||null}))};
+  }
+  function shouldSavePrediction(date){
+    const t=todayKey();
+    if(date>t)return true;
+    if(date===t&&currentHour()<18)return true;
+    return false;
+  }
+  function savePredictionSnapshot(date,result,baseRows,jmaRows,marineRows,satRows){
+    if(!date||!result||!shouldSavePrediction(date))return;
+    const store=readAutoStore();
+    const items=store.items||[];
+    const now=new Date().toISOString();
+    const id=`${date}:${todayKey()}`;
+    const existing=items.find(x=>x.id===id);
+    const snap={
+      id,
+      targetDate:date,
+      savedAt:now,
+      selectedAtHour:currentHour(),
+      title:result.title,
+      gradeKey:result.gradeKey,
+      symbol:result.symbol,
+      score:round(result.score,0),
+      goodHours:result.goodHours,
+      cloudAvg:round(result.cloudAvg,0),
+      sunHours:result.sunHours,
+      uvMax:round(result.uvMax,1),
+      rainLevel:result.rainLevel,
+      tanLevel:result.tanLevel,
+      marineLabel:result.marineLabel,
+      bestTime:result.bestTime||'',
+      forecast:{
+        rainProbMax:maximum((baseRows||[]).map(r=>r.rainProb)),
+        rainAmount:round(sum((baseRows||[]).map(r=>r.rain||0)),1),
+        rainCodes:(baseRows||[]).filter(r=>isRainCode(r.code)).length,
+        jmaGood:jmaRows?.length?(jmaRows||[]).map(r=>judgeHour(r,null)).filter(h=>h.gradeKey==='great'||h.gradeKey==='good').length:null,
+        jmaRainCodes:(jmaRows||[]).filter(r=>isRainCode(r.code)).length,
+        waveMax:round(maximum((marineRows||[]).map(r=>r.wave)),2),
+        satAvg:round(average((satRows||[]).map(r=>r.satRad)),0)
+      }
+    };
+    if(existing){
+      if(!existing.evaluation)Object.assign(existing,snap);
+    }else{
+      items.push(snap);
+    }
+    writeAutoStore({items});
+  }
+  async function runAutoVerification(bundle){
+    const store=readAutoStore();
+    let changed=false;
+    const today=todayKey(), hour=currentHour();
+    for(const item of store.items||[]){
+      if(item.evaluation&&item.evaluation.final)continue;
+      const due=item.targetDate<today||(item.targetDate===today&&hour>=18);
+      if(!due)continue;
+      const observed=await buildObservedOutcome(item.targetDate,bundle).catch(e=>({status:'error',error:String(e.message||e)}));
+      const evaluation=evaluatePrediction(item,observed);
+      item.observed=observed;
+      item.evaluation=evaluation;
+      item.evaluatedAt=new Date().toISOString();
+      changed=true;
+    }
+    if(changed){writeAutoStore(store);renderAutoEvaluations();}
+  }
+  async function buildObservedOutcome(date,bundle){
+    const satRows=bundle?.satellite?.hourly?targetRows(bundle.satellite.hourly,date):[];
+    const satAvg=average(satRows.map(r=>r.satRad));
+    const satStrongHours=satRows.filter(r=>Number(r.satRad)>=350).length;
+    const satSunHours=round(sum(satRows.map(r=>Number(r.satSunMin)||0))/60,1);
+    let amedasDay=null;
+    try{amedasDay=await fetchAmedasDay(date)}catch(e){amedasDay={status:'unavailable',error:String(e.message||e)}}
+    const rainAmount=Number.isFinite(Number(amedasDay?.rainSum))?amedasDay.rainSum:null;
+    const amedasSun=Number.isFinite(Number(amedasDay?.sunSum))?amedasDay.sunSum:null;
+    const sunHours=Number.isFinite(amedasSun)?amedasSun:(Number.isFinite(satSunHours)&&satSunHours>0?satSunHours:null);
+    let observedGrade='unknown';
+    if(Number.isFinite(sunHours)||Number.isFinite(satAvg)||Number.isFinite(rainAmount)){
+      const rainBad=Number.isFinite(rainAmount)&&rainAmount>1;
+      const sunGood=(Number.isFinite(sunHours)&&sunHours>=4)||(Number.isFinite(satStrongHours)&&satStrongHours>=4)||(Number.isFinite(satAvg)&&satAvg>=420);
+      const sunOk=(Number.isFinite(sunHours)&&sunHours>=2)||(Number.isFinite(satStrongHours)&&satStrongHours>=2)||(Number.isFinite(satAvg)&&satAvg>=220);
+      if(rainBad)observedGrade='bad';
+      else if(sunGood)observedGrade='good';
+      else if(sunOk)observedGrade='ok';
+      else observedGrade='bad';
+    }
+    return{
+      status:'ok',
+      date,
+      satAvg:round(satAvg,0),
+      satStrongHours,
+      satSunHours,
+      amedasStation:amedasDay?.station||null,
+      amedasSunHours:amedasSun,
+      rainAmount,
+      observedGrade,
+      source:amedasDay?.status==='ok'?'satellite+amedas':'satellite'
+    };
+  }
+  async function fetchAmedasDay(date){
+    const table=await fetchJson('https://www.jma.go.jp/bosai/amedas/const/amedastable.json');
+    const latest=await fetchText('https://www.jma.go.jp/bosai/amedas/data/latest_time.txt');
+    const latestDate=new Date(latest.trim());
+    const latestMap=await fetchJson(`https://www.jma.go.jp/bosai/amedas/data/map/${amedasTimeKey(latestDate)}.json`);
+    const best=findNearestAmedasStation(table,latestMap);
+    if(!best)throw new Error('amedas station not found');
+    const hours=[];
+    for(let h=CFG.startHour+1;h<=CFG.endHour+1;h++){
+      const hh=String(h).padStart(2,'0');
+      hours.push(`${date.replaceAll('-','')}${hh}0000`);
+    }
+    const maps=await Promise.allSettled(hours.map(key=>fetchJson(`https://www.jma.go.jp/bosai/amedas/data/map/${key}.json`)));
+    const rows=maps.map((r,i)=>{
+      if(r.status!=='fulfilled')return null;
+      const obs=r.value?.[best.code];
+      if(!obs)return null;
+      return{key:hours[i],sun1h:valueOf(obs.sun1h),rain1h:valueOf(obs.precipitation1h),temp:valueOf(obs.temp),humidity:valueOf(obs.humidity)};
+    }).filter(Boolean);
+    if(!rows.length)throw new Error('amedas daily rows not found');
+    return{status:'ok',station:best.meta.kjName||best.meta.enName||best.code,date,sunSum:round(sum(rows.map(r=>r.sun1h||0)),1),rainSum:round(sum(rows.map(r=>r.rain1h||0)),1),rows:rows.length};
+  }
+  function findNearestAmedasStation(table,map){
+    let best=null;
+    for(const [code,meta] of Object.entries(table||{})){
+      const obs=map?.[code];if(!obs)continue;
+      const lat=coord(meta.lat),lon=coord(meta.lon);
+      if(!Number.isFinite(lat)||!Number.isFinite(lon))continue;
+      const dist=Math.hypot(lat-CFG.lat,lon-CFG.lon);
+      if(!best||dist<best.dist)best={code,meta,obs,dist};
+    }
+    return best;
+  }
+  function evaluatePrediction(item,observed){
+    if(!observed||observed.status!=='ok'||observed.observedGrade==='unknown')return{label:'保留',level:'hold',final:false,reason:'実測データ不足。'};
+    const predicted=item.gradeKey==='great'||item.gradeKey==='good'?'good':item.gradeKey==='ok'?'ok':'bad';
+    const actual=observed.observedGrade;
+    let label='的中',level='hit',reason='';
+    if(predicted==='good'&&actual==='bad'){label='外れ';level='miss';reason='行ける予測に対して、実測の日射が弱い/雨あり。'}
+    else if(predicted==='bad'&&(actual==='good'||actual==='ok')){label='外れ';level='miss';reason='見送り予測に対して、実測は日差しあり。'}
+    else if(predicted==='ok'&&actual==='good'){label='やや外れ';level='partial';reason='条件付き予測より実測は良好。'}
+    else if(predicted==='ok'&&actual==='bad'){label='的中寄り';level='hit';reason='条件付き予測どおり、実測も厳しめ。'}
+    else if(predicted==='good'&&actual==='ok'){label='やや外れ';level='partial';reason='行ける予測より日射はやや弱め。'}
+    else{label='的中';level='hit';reason='予測と実測傾向が一致。'}
+    return{label,level,final:true,reason};
+  }
+  function renderAutoEvaluations(){
+    const store=readAutoStore(),items=(store.items||[]).slice().sort((a,b)=>String(b.targetDate).localeCompare(String(a.targetDate))||String(b.savedAt).localeCompare(String(a.savedAt)));
+    const evaluated=items.filter(x=>x.evaluation);
+    text('autoEvalStatus',`${evaluated.length}/${items.length}件`);
+    const root=$('#autoEvalList');if(!root)return;
+    if(!items.length){root.innerHTML='<p class="note">まだ自動照合できる予測がありません。</p>';return}
+    root.innerHTML=items.slice(0,6).map(item=>{
+      const ev=item.evaluation;
+      const obs=item.observed;
+      const cls=ev?.level||'pending';
+      const label=ev?.label||'未照合';
+      const source=obs?.source?` / ${obs.source}`:'';
+      const obsLine=obs?.status==='ok'?`実測：日射${fmt(obs.satAvg)}W/m² / 強日射${obs.satStrongHours ?? '-'}h / 日照${obs.amedasSunHours ?? obs.satSunHours ?? '-'}h / 雨${obs.rainAmount ?? '-'}mm${source}`:'実測：未取得';
+      return`<div class="autoItem ${cls}"><div><strong>${dateLabel(item.targetDate)} ${escapeHtml(item.symbol||'')} ${escapeHtml(item.title||'')}</strong><span>${escapeHtml(label)}</span></div><p>${escapeHtml(obsLine)}</p>${ev?.reason?`<p>${escapeHtml(ev.reason)}</p>`:''}</div>`;
+    }).join('');
+  }
+
+
   function saveLog(){const logs=readLogs();logs.unshift({at:new Date().toISOString(),date:state.selectedDate||todayKey(),sky:$('#skySelect').value,result:$('#resultSelect').value,memo:$('#memoInput').value.trim(),title:$('#mainTitle').textContent,grade:$('#gradeMark').textContent});localStorage.setItem(CFG.logKey,JSON.stringify(logs.slice(0,200)));$('#memoInput').value='';renderLogs();toast('記録しました')}
   function readLogs(){try{return JSON.parse(localStorage.getItem(CFG.logKey))||[]}catch{return[]}}
   function renderLogs(){const logs=readLogs();text('logCount',`${logs.length}件`);const root=$('#recentLogs');if(!root)return;root.innerHTML=logs.slice(0,5).map(l=>`<div class="logItem"><strong>${dateLabel(l.date)} / ${escapeHtml(l.sky)} / ${escapeHtml(l.result)}</strong><br>判定：${escapeHtml(l.grade)} ${escapeHtml(l.title)} ${l.memo?`<br>メモ：${escapeHtml(l.memo)}`:''}</div>`).join('')||'<p class="note">まだ記録がありません。</p>'}
@@ -547,6 +773,7 @@
       },
       sampleRows,
       serviceWorker:sw,
+      autoVerification: autoSummaryForDebug(),
       recentFetches:debugFetches
     };
     return log;
@@ -602,6 +829,7 @@
       localStorage.removeItem(CFG.cacheKey);
       for(const key of CFG.legacyCacheKeys||[])localStorage.removeItem(key);
       localStorage.removeItem(CFG.historyKey);
+      localStorage.removeItem(CFG.autoKey);
       sessionStorage.removeItem(CFG.debugKey);
       if('caches'in window){const keys=await caches.keys();await Promise.all(keys.filter(k=>k.includes('takamatsu-weather')).map(k=>caches.delete(k)))}
       toast('キャッシュを初期化しました');

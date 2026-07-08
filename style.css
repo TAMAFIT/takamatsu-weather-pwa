@@ -926,3 +926,48 @@ h1{margin:0;font-size:25px;line-height:1.08;letter-spacing:-.07em;color:white;fo
 /* v6.4.1 bugfix: nv helper + history-safe update */
 
 /* v6.4.2 polish: night AMeDAS label, stability wording, fetch log de-dupe */
+
+/* v6.4.3 rain balance: probability-only rain risk is not treated as hard stop */
+
+
+/* v6.5 automatic forecast verification */
+.autoEvalList{
+  display:grid;
+  gap:10px;
+}
+.autoItem{
+  border-radius:20px;
+  padding:12px;
+  background:rgba(255,255,255,.78);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.85),0 8px 18px rgba(0,40,70,.07);
+  border:1px solid rgba(255,255,255,.65);
+}
+.autoItem>div{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+}
+.autoItem strong{
+  font-size:15px;
+  color:#073244;
+}
+.autoItem span{
+  flex:0 0 auto;
+  border-radius:999px;
+  padding:5px 10px;
+  font-weight:900;
+  font-size:12px;
+  background:#eef7fa;
+  color:#073244;
+}
+.autoItem p{
+  margin:6px 0 0;
+  font-size:12px;
+  line-height:1.55;
+  color:#31536a;
+}
+.autoItem.hit span{background:#dcfce7;color:#11633a}
+.autoItem.partial span{background:#fff7cc;color:#7a5a00}
+.autoItem.miss span{background:#ffe0df;color:#9b1c1c}
+.autoItem.hold span,.autoItem.pending span{background:#edf2f7;color:#405165}
