@@ -858,3 +858,10 @@ h1{margin:0;font-size:25px;line-height:1.08;letter-spacing:-.07em;color:white;fo
 #satSignal,#amedasTrend,#sourceSatellite,#sourceRuns{
   word-break:keep-all;
 }
+
+/* v6.2 local stability */
+#sourceRuns,#confidence,#satSignal,#amedasTrend{
+  word-break:keep-all;
+}
+
+/* v6.2.1 recovery: forecast retry + legacy cache fallback */

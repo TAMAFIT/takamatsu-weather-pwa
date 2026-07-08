@@ -1,6 +1,6 @@
 (() => {
   'use strict';
-  const CFG={lat:34.3428,lon:134.0466,marineLat:34.35,marineLon:134.05,tz:'Asia/Tokyo',days:16,startHour:9,endHour:17,cacheKey:'takamatsu-sea-weather:v10-ui6-1',logKey:'takamatsu-sea-weather:logs',appVersion:'v6.1-status-fix'};
+  const CFG={lat:34.3428,lon:134.0466,marineLat:34.35,marineLon:134.05,tz:'Asia/Tokyo',days:16,startHour:9,endHour:17,cacheKey:'takamatsu-sea-weather:v10-ui6-2-1',logKey:'takamatsu-sea-weather:logs',appVersion:'v6.2.1-recovery',historyKey:'takamatsu-sea-weather:forecast-history-v1',legacyCacheKeys:['takamatsu-sea-weather:v10-ui6-2','takamatsu-sea-weather:v10-ui6-1','takamatsu-sea-weather:v10-ui6','takamatsu-sea-weather:v10-ui5','takamatsu-sea-weather:v10-ui4','takamatsu-sea-weather:v2-1:last-success']};
   const state={selectedDate:null,bundle:null,status:{forecast:'未取得',jma:'未取得',marine:'未取得',amedas:'未取得',satellite:'未取得',runs:'未取得'}};
   document.addEventListener('DOMContentLoaded',()=>{try{bindStaticUi();load(false);renderLogs();registerServiceWorker()}catch(e){console.error(e);text('mainTitle','初期化失敗');text('mainReason','画面初期化でエラーが出ました。ファイルを再配置してください。')}});
   function bindStaticUi(){ $('#refreshBtn')?.addEventListener('click',()=>load(true)); $('#openLogBtn')?.addEventListener('click',()=>$('#logDialog')?.showModal()); $('#closeLogBtn')?.addEventListener('click',()=>$('#logDialog')?.close()); $('#logForm')?.addEventListener('submit',e=>{e.preventDefault();saveLog();$('#logDialog')?.close()}); const b='https://www.jma.go.jp/bosai'; $('#nowcastLink').href=`${b}/nowc/#lat:${CFG.lat}/lon:${CFG.lon}/zoom:11/colordepth:normal/elements:hrpns&slmcs`; $('#himawariLink').href=`${b}/map.html#6/${CFG.lat}/${CFG.lon}/&elem=ir&contents=himawari`; }
@@ -15,23 +15,50 @@
     writeCache(bundle);renderAll();toast('更新しました')
   }catch(e){console.error(e);const cached=readCache();
     if(isUsableCache(cached)){state.bundle=cached;state.status=normalizeStatus(cached.status);state.selectedDate ||= todayKey();renderAll('最新取得に失敗。前回データを表示しています。')}
-    else{text('mainTitle','取得失敗');text('mainReason','通信またはAPI取得に失敗しました。白画面にはしない設計です。少し待って更新してください。');state.status=normalizeStatus(state.status);updateStatus()}
+    else{text('mainTitle','取得失敗');text('mainReason','通信またはAPI取得に失敗しました。前回データがないため表示できません。GitHub Pages上で開くか、少し待って更新してください。');state.status=normalizeStatus({...state.status,forecast:'失敗'});updateStatus()}
   }finally{setLoading(false)}}
   async function fetchBundle(){const status={forecast:'取得中',jma:'取得中',marine:'取得中',amedas:'取得中',satellite:'取得中',runs:'取得中'};
-    const [forecast,jma,marine,amedas,satellite,runs]=await Promise.allSettled([fetchForecast(),fetchJma(),fetchMarine(),fetchAmedas(),fetchSatelliteRadiation(),fetchPreviousRuns()]);
+    const [forecast,jma,marine,amedas,satellite]=await Promise.allSettled([fetchForecast(),fetchJma(),fetchMarine(),fetchAmedas(),fetchSatelliteRadiation()]);
     if(forecast.status!=='fulfilled')throw forecast.reason;
+    const history=buildForecastHistory(forecast.value);
+    saveForecastHistory(forecast.value);
     status.forecast='OK';
     status.jma=jma.status==='fulfilled'?'OK':'失敗';
     status.marine=marine.status==='fulfilled'?'OK':'失敗';
     status.amedas=amedas.status==='fulfilled'?'OK':'失敗';
     status.satellite=satellite.status==='fulfilled'?'OK':'失敗';
-    status.runs=runs.status==='fulfilled'?'OK':'失敗';
+    status.runs=history.samples>0?'OK':'初回';
     status.satelliteError=satellite.status==='fulfilled'?'':String(satellite.reason?.message||satellite.reason||'');
-    status.runsError=runs.status==='fulfilled'?'':String(runs.reason?.message||runs.reason||'');
+    status.runsError='';
     status.amedasError=amedas.status==='fulfilled'?'':String(amedas.reason?.message||amedas.reason||'');
-    return{version:CFG.appVersion,updatedAt:new Date().toISOString(),forecast:forecast.value,jma:jma.status==='fulfilled'?jma.value:null,marine:marine.status==='fulfilled'?marine.value:null,amedas:amedas.status==='fulfilled'?amedas.value:null,satellite:satellite.status==='fulfilled'?satellite.value:null,runs:runs.status==='fulfilled'?runs.value:null,status:normalizeStatus(status)}
+    return{version:CFG.appVersion,updatedAt:new Date().toISOString(),forecast:forecast.value,jma:jma.status==='fulfilled'?jma.value:null,marine:marine.status==='fulfilled'?marine.value:null,amedas:amedas.status==='fulfilled'?amedas.value:null,satellite:satellite.status==='fulfilled'?satellite.value:null,runs:history,status:normalizeStatus(status)}
   }
-  async function fetchForecast(){const hourly=['temperature_2m','relative_humidity_2m','precipitation_probability','precipitation','weather_code','cloud_cover','cloud_cover_low','cloud_cover_mid','cloud_cover_high','sunshine_duration','shortwave_radiation','uv_index','wind_speed_10m','wind_gusts_10m'].join(',');const daily=['weather_code','temperature_2m_max','temperature_2m_min','precipitation_sum','precipitation_probability_max','wind_speed_10m_max','sunshine_duration','uv_index_max','shortwave_radiation_sum'].join(',');const qs=new URLSearchParams({latitude:CFG.lat,longitude:CFG.lon,timezone:CFG.tz,forecast_days:String(CFG.days),hourly,daily});const res=await fetch(`https://api.open-meteo.com/v1/forecast?${qs}`,{cache:'no-store'});if(!res.ok)throw new Error(`forecast ${res.status}`);return normalizeForecast(await res.json())}
+  async function fetchForecast(){
+    const attempts=[
+      {
+        hourly:['temperature_2m','relative_humidity_2m','precipitation_probability','precipitation','weather_code','cloud_cover','cloud_cover_low','cloud_cover_mid','cloud_cover_high','sunshine_duration','shortwave_radiation','uv_index','wind_speed_10m','wind_gusts_10m'],
+        daily:['weather_code','temperature_2m_max','temperature_2m_min','precipitation_sum','precipitation_probability_max','wind_speed_10m_max','sunshine_duration','uv_index_max','shortwave_radiation_sum']
+      },
+      {
+        hourly:['temperature_2m','relative_humidity_2m','precipitation_probability','precipitation','weather_code','cloud_cover','sunshine_duration','shortwave_radiation','uv_index','wind_speed_10m'],
+        daily:['weather_code','temperature_2m_max','temperature_2m_min','precipitation_sum','precipitation_probability_max','wind_speed_10m_max','sunshine_duration','uv_index_max']
+      },
+      {
+        hourly:['temperature_2m','precipitation_probability','precipitation','weather_code','cloud_cover','shortwave_radiation','uv_index','wind_speed_10m'],
+        daily:['weather_code','temperature_2m_max','temperature_2m_min','precipitation_sum','precipitation_probability_max']
+      }
+    ];
+    let lastErr=null;
+    for(const a of attempts){
+      const qs=new URLSearchParams({latitude:CFG.lat,longitude:CFG.lon,timezone:CFG.tz,forecast_days:String(CFG.days),hourly:a.hourly.join(','),daily:a.daily.join(',')});
+      try{
+        const res=await fetch(`https://api.open-meteo.com/v1/forecast?${qs}`,{cache:'no-store'});
+        if(!res.ok){lastErr=new Error(`forecast ${res.status}`);continue}
+        return normalizeForecast(await res.json());
+      }catch(e){lastErr=e}
+    }
+    throw lastErr||new Error('forecast unavailable');
+  }
   async function fetchJma(){const hourly=['temperature_2m','relative_humidity_2m','precipitation','weather_code','cloud_cover','sunshine_duration','shortwave_radiation','wind_speed_10m'].join(',');const daily=['weather_code','temperature_2m_max','temperature_2m_min','precipitation_sum','wind_speed_10m_max','sunshine_duration','shortwave_radiation_sum'].join(',');const qs=new URLSearchParams({latitude:CFG.lat,longitude:CFG.lon,timezone:CFG.tz,forecast_days:'11',hourly,daily});const res=await fetch(`https://api.open-meteo.com/v1/jma?${qs}`,{cache:'no-store'});if(!res.ok)throw new Error(`jma ${res.status}`);return normalizeForecast(await res.json())}
   async function fetchMarine(){const hourly=['wave_height','wave_period','wind_wave_height','swell_wave_height','sea_surface_temperature'].join(',');const qs=new URLSearchParams({latitude:CFG.marineLat,longitude:CFG.marineLon,timezone:CFG.tz,forecast_days:String(CFG.days),hourly});const res=await fetch(`https://marine-api.open-meteo.com/v1/marine?${qs}`,{cache:'no-store'});if(!res.ok)throw new Error(`marine ${res.status}`);const j=await res.json(),h=j.hourly||{};return{hourly:(h.time||[]).map((time,i)=>({time,date:time.slice(0,10),hour:Number(time.slice(11,13)),wave:round(h.wave_height?.[i],2),wavePeriod:round(h.wave_period?.[i],1),windWave:round(h.wind_wave_height?.[i],2),swell:round(h.swell_wave_height?.[i],2),seaTemp:round(h.sea_surface_temperature?.[i],1)}))}}
   async function fetchSatelliteRadiation(){
@@ -51,6 +78,28 @@
       return{hourly:rows};
     }
     throw lastErr||new Error('satellite unavailable');
+  }
+  function buildForecastHistory(forecast){
+    const prev=readForecastHistory();
+    const last1=prev[prev.length-1]||null;
+    const last2=prev[prev.length-2]||null;
+    const rows=(forecast.hourly||[]).map(r=>{
+      const p1=last1?findHistoryRow(last1,r.date,r.hour):null;
+      const p2=last2?findHistoryRow(last2,r.date,r.hour):null;
+      return{date:r.date,hour:r.hour,cloud:nv(r.cloud),cloud1:nv(p1?.cloud),cloud2:nv(p2?.cloud),rainProb:nv(r.rainProb),rainProb1:nv(p1?.rainProb),rainProb2:nv(p2?.rainProb),rad:nv(r.radiation),rad1:nv(p1?.radiation),rad2:nv(p2?.radiation),sunMin:nv(r.sunMin),sunMin1:nv(p1?.sunMin),sunMin2:nv(p2?.sunMin)}
+    });
+    return{type:'local-history',samples:prev.length,hourly:rows};
+  }
+  function findHistoryRow(snapshot,date,hour){return(snapshot.hourly||[]).find(r=>r.date===date&&r.hour===hour)||null}
+  function readForecastHistory(){try{const arr=JSON.parse(localStorage.getItem(CFG.historyKey)||'[]');return Array.isArray(arr)?arr.filter(x=>x&&x.hourly):[]}catch{return[]}}
+  function saveForecastHistory(forecast){
+    try{
+      const arr=readForecastHistory();
+      const snap={time:new Date().toISOString(),hourly:(forecast.hourly||[]).map(r=>({date:r.date,hour:r.hour,cloud:nv(r.cloud),rainProb:nv(r.rainProb),radiation:nv(r.radiation),sunMin:nv(r.sunMin)}))};
+      arr.push(snap);
+      const cut=arr.slice(-8);
+      localStorage.setItem(CFG.historyKey,JSON.stringify(cut));
+    }catch(e){console.warn('history save skipped',e)}
   }
   async function fetchPreviousRuns(){
     const attempts=[
@@ -159,9 +208,9 @@
     else if(waveMax>=0.8)score-=6;
     if(modelDiff!==null&&modelDiff>=4)score-=8;
 
-    if(sat.level==='強')score+=8;
-    else if(sat.level==='中')score+=3;
-    else if(sat.level==='弱')score-=10;
+    if(sat.level==='強')score+=10;
+    else if(sat.level==='中')score+=4;
+    else if(sat.level==='弱')score-=12;
 
     if(stability.level==='高')score+=5;
     else if(stability.level==='低')score-=8;
@@ -207,11 +256,12 @@
     if(sat?.note)parts.push(sat.note);
     else if(sat?.level&&sat.level!=='不明')parts.push(`衛星日射${sat.label}。`);
     if(stability?.note)parts.push(stability.note);
-    else if(stability?.level&&stability.level!=='不明')parts.push(`予報安定度${stability.level}。`);
     if(isToday(selectedDate)&&amedas){
       if((amedas.rain1h||0)>0)parts.push(`直近雨${amedas.rain1h}mm。`);
       if(Number.isFinite(amedas.sun1h))parts.push(`直近日照${amedas.sun1h}h。`);
       if(amedasTrend?.level&&amedasTrend.level!=='不明')parts.push(`日照推移${amedasTrend.label}。`);
+    }else if(isToday(selectedDate)&&amedasTrend?.level==='衛星補正'){
+      parts.push('アメダス日照は未使用。衛星日射で補正中。');
     }else if(!isToday(selectedDate)){
       parts.push('衛星日射・実測日照は当日確認用。');
     }
@@ -241,7 +291,10 @@
   }
   function analyzeAmedasTrend(amedas,selectedDate,status){
     if(!isToday(selectedDate))return{level:'対象外',label:'当日確認'};
-    if(status?.amedas==='失敗')return{level:'失敗',label:'取得失敗'};
+    if(status?.amedas==='失敗'){
+      if(status?.satellite==='OK')return{level:'衛星補正',label:'衛星補正'};
+      return{level:'失敗',label:'取得失敗'};
+    }
     const s=amedas?.series||[];
     const xs=s.filter(r=>Number.isFinite(Number(r.sun1h)));
     if(!xs.length)return{level:'不明',label:'未取得'};
@@ -254,22 +307,22 @@
     return{level:'横ばい',label:'横ばい'};
   }
   function analyzeRunStability(rows,selectedDate,status){
-    if(status?.runs==='失敗')return{level:'失敗',label:'取得失敗',diff:null,note:'予報安定度は取得失敗。'};
+    if(status?.runs==='初回')return{level:'初回',label:'記録開始',diff:null,note:'予報安定度は記録開始。次回更新から比較します。'};
     if(status?.runs==='取得中')return{level:'不明',label:'取得中',diff:null,note:'予報安定度を取得中。'};
     const xs=(rows||[]).filter(r=>Number.isFinite(Number(r.cloud))&&(Number.isFinite(Number(r.cloud1))||Number.isFinite(Number(r.cloud2))));
-    if(!xs.length)return{level:'対象外',label:'短期のみ',diff:null,note:'予報安定度は対象外または未取得。'};
+    if(!xs.length)return{level:'初回',label:'記録開始',diff:null,note:'予報安定度は記録開始。次回更新から比較します。'};
     const diffs=xs.map(r=>{
       const ds=[];
       if(Number.isFinite(Number(r.cloud1)))ds.push(Math.abs(r.cloud-r.cloud1));
       if(Number.isFinite(Number(r.cloud2)))ds.push(Math.abs(r.cloud-r.cloud2));
       if(Number.isFinite(Number(r.rainProb))&&Number.isFinite(Number(r.rainProb1)))ds.push(Math.abs(r.rainProb-r.rainProb1));
-      if(Number.isFinite(Number(r.precip))&&Number.isFinite(Number(r.precip1)))ds.push(Math.min(100,Math.abs(r.precip-r.precip1)*20));
+      if(Number.isFinite(Number(r.sunMin))&&Number.isFinite(Number(r.sunMin1)))ds.push(Math.min(100,Math.abs(r.sunMin-r.sunMin1)*1.5));
       if(Number.isFinite(Number(r.rad))&&Number.isFinite(Number(r.rad1)))ds.push(Math.min(100,Math.abs(r.rad-r.rad1)/8));
       return average(ds);
     });
     const diff=average(diffs);
-    const level=diff<=12?'高':diff<=25?'中':'低';
-    return{level,label:level,diff:round(diff,0)};
+    const level=diff<=10?'高':diff<=22?'中':'低';
+    return{level,label:level,diff:round(diff,0),note:`予報履歴の安定度${level}。`};
   }
   function combinedConfidence({modelDiff,stability,sat}){
     let score=0;
@@ -341,8 +394,19 @@
     if(sunCloudCount+cloudSunCount>=3)return '⛅';
     return '☁️';
   }
-  function setLoading(v){const b=$('#refreshBtn');b.disabled=v;b.textContent=v?'取得中':'更新'} async function fetchText(url){const res=await fetch(url,{cache:'no-store'});if(!res.ok)throw new Error(`${url} ${res.status}`);return res.text()} async function fetchJson(url){const res=await fetch(url,{cache:'no-store'});if(!res.ok)throw new Error(`${url} ${res.status}`);return res.json()} function amedasTimeKey(value){const d=new Date(value);const p=new Intl.DateTimeFormat('sv-SE',{timeZone:CFG.tz,year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false}).formatToParts(d).reduce((a,x)=>(a[x.type]=x.value,a),{});return`${p.year}${p.month}${p.day}${p.hour}${p.minute}${p.second}`} function coord(v){if(Array.isArray(v))return Number(v[0])+Number(v[1]||0)/60;return Number(v)} function valueOf(v){if(Array.isArray(v))return Number(v[0]);const n=Number(v);return Number.isFinite(n)?n:null} function readCache(){try{const b=JSON.parse(localStorage.getItem(CFG.cacheKey));return isUsableCache(b)?b:null}catch{return null}}
-  function isUsableCache(b){return !!(b&&b.version===CFG.appVersion&&b.forecast?.hourly?.length&&b.status&&('satellite'in b.status)&&('runs'in b.status))}
+  function setLoading(v){const b=$('#refreshBtn');b.disabled=v;b.textContent=v?'取得中':'更新'} async function fetchText(url){const res=await fetch(url,{cache:'no-store'});if(!res.ok)throw new Error(`${url} ${res.status}`);return res.text()} async function fetchJson(url){const res=await fetch(url,{cache:'no-store'});if(!res.ok)throw new Error(`${url} ${res.status}`);return res.json()} function amedasTimeKey(value){const d=new Date(value);const p=new Intl.DateTimeFormat('sv-SE',{timeZone:CFG.tz,year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false}).formatToParts(d).reduce((a,x)=>(a[x.type]=x.value,a),{});return`${p.year}${p.month}${p.day}${p.hour}${p.minute}${p.second}`} function coord(v){if(Array.isArray(v))return Number(v[0])+Number(v[1]||0)/60;return Number(v)} function valueOf(v){if(Array.isArray(v))return Number(v[0]);const n=Number(v);return Number.isFinite(n)?n:null} function readCache(){
+    try{
+      const current=JSON.parse(localStorage.getItem(CFG.cacheKey));
+      if(isUsableCache(current))return current;
+      for(const key of CFG.legacyCacheKeys||[]){
+        const b=JSON.parse(localStorage.getItem(key));
+        if(b?.forecast?.hourly?.length)return upgradeCache(b);
+      }
+      return null;
+    }catch{return null}
+  }
+  function upgradeCache(b){return{...b,version:CFG.appVersion,status:normalizeStatus(b.status),satellite:b.satellite||null,runs:b.runs||{type:'none',samples:0,hourly:[]}}}
+  function isUsableCache(b){return !!(b&&b.forecast?.hourly?.length)}
   function normalizeStatus(s={}){return{
     forecast:s.forecast||'未取得',
     jma:s.jma||'未取得',
