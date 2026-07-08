@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
+  <title id="title">高松天気</title>
+  <desc id="desc">青い空と雲の天気アプリアイコン</desc>
+  <rect width="512" height="512" rx="116" fill="#1666d8"/>
+  <circle cx="178" cy="190" r="58" fill="#fbbf24"/>
+  <g fill="#ffffff">
+    <circle cx="196" cy="286" r="66"/>
+    <circle cx="274" cy="258" r="82"/>
+    <circle cx="348" cy="300" r="58"/>
+    <rect x="142" y="286" width="260" height="86" rx="43"/>
+  </g>
+  <path d="M171 399h170" stroke="#dbeafe" stroke-width="24" stroke-linecap="round" opacity="0.95"/>
+</svg>
