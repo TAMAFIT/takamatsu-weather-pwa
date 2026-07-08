@@ -865,3 +865,64 @@ h1{margin:0;font-size:25px;line-height:1.08;letter-spacing:-.07em;color:white;fo
 }
 
 /* v6.2.1 recovery: forecast retry + legacy cache fallback */
+
+/* v6.3 stable fetch: split forecast, JMA fallback, AMeDAS key fix */
+
+
+/* v6.4 developer diagnostics */
+.devCard details{
+  width:100%;
+}
+.devCard summary{
+  cursor:pointer;
+  font-weight:900;
+  font-size:20px;
+  color:#073244;
+  list-style:none;
+}
+.devCard summary::-webkit-details-marker{display:none}
+.devActions{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:10px;
+  margin-top:12px;
+}
+.devActions button{
+  border:none;
+  border-radius:18px;
+  padding:12px 10px;
+  font-weight:900;
+  color:#073244;
+  background:linear-gradient(180deg,rgba(255,255,255,.96),rgba(233,248,250,.94));
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.9),0 8px 18px rgba(0,50,80,.08);
+}
+.devActions button:first-child{
+  background:#053956;
+  color:white;
+}
+.debugPreview{
+  max-height:260px;
+  overflow:auto;
+  white-space:pre-wrap;
+  word-break:break-word;
+  margin:12px 0 0;
+  padding:12px;
+  border-radius:18px;
+  background:rgba(4,28,42,.86);
+  color:#e7fbff;
+  font-size:11px;
+  line-height:1.5;
+}
+.debugDialog{
+  max-width:min(92vw,720px);
+}
+.debugDialog .debugPreview{
+  max-height:62vh;
+}
+@media(max-width:390px){
+  .devActions{grid-template-columns:1fr}
+}
+
+/* v6.4.1 bugfix: nv helper + history-safe update */
+
+/* v6.4.2 polish: night AMeDAS label, stability wording, fetch log de-dupe */

@@ -100,6 +100,21 @@
         </div>
       </section>
 
+
+      <section class="card devCard">
+        <details>
+          <summary>開発者向け診断</summary>
+          <p class="note">不具合が出た時は、診断ログをコピーしてChatGPTに貼ってください。通常利用では触らなくて大丈夫です。</p>
+          <div class="devActions">
+            <button id="copyDebugBtn" type="button">診断ログをコピー</button>
+            <button id="saveDebugBtn" type="button">ログ保存</button>
+            <button id="runTestBtn" type="button">接続テスト</button>
+            <button id="clearCacheBtn" type="button">キャッシュ初期化</button>
+          </div>
+          <pre id="debugPreview" class="debugPreview">診断ログは未作成です。</pre>
+        </details>
+      </section>
+
       <section class="card logs">
         <div class="sectionHead"><h3>外れ補正ログ</h3><span id="logCount">0件</span></div>
         <p class="note">実際に海に行けたか、日焼けできたかを残すと、後で高松用の補正ルールを調整できます。</p>
@@ -133,6 +148,17 @@
       <div class="dialogActions">
         <button value="cancel" type="button" id="closeLogBtn">閉じる</button>
         <button value="default" type="submit">保存</button>
+      </div>
+    </form>
+  </dialog>
+
+
+  <dialog id="debugDialog" class="logDialog debugDialog">
+    <form method="dialog">
+      <h3>接続テスト結果</h3>
+      <pre id="debugTestResult" class="debugPreview">未実行です。</pre>
+      <div class="dialogActions">
+        <button value="cancel" type="submit">閉じる</button>
       </div>
     </form>
   </dialog>

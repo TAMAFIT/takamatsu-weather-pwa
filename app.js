@@ -1,9 +1,26 @@
 (() => {
   'use strict';
-  const CFG={lat:34.3428,lon:134.0466,marineLat:34.35,marineLon:134.05,tz:'Asia/Tokyo',days:16,startHour:9,endHour:17,cacheKey:'takamatsu-sea-weather:v10-ui6-2-1',logKey:'takamatsu-sea-weather:logs',appVersion:'v6.2.1-recovery',historyKey:'takamatsu-sea-weather:forecast-history-v1',legacyCacheKeys:['takamatsu-sea-weather:v10-ui6-2','takamatsu-sea-weather:v10-ui6-1','takamatsu-sea-weather:v10-ui6','takamatsu-sea-weather:v10-ui5','takamatsu-sea-weather:v10-ui4','takamatsu-sea-weather:v2-1:last-success']};
+  const CFG={lat:34.3428,lon:134.0466,marineLat:34.35,marineLon:134.05,tz:'Asia/Tokyo',days:16,startHour:9,endHour:17,cacheKey:'takamatsu-sea-weather:v10-ui6-4-2',logKey:'takamatsu-sea-weather:logs',appVersion:'v6.4.2-polish',historyKey:'takamatsu-sea-weather:forecast-history-v1',legacyCacheKeys:['takamatsu-sea-weather:v10-ui6-2-1','takamatsu-sea-weather:v10-ui6-2','takamatsu-sea-weather:v10-ui6-1','takamatsu-sea-weather:v10-ui6','takamatsu-sea-weather:v10-ui5','takamatsu-sea-weather:v10-ui4','takamatsu-sea-weather:v2-1:last-success']};
   const state={selectedDate:null,bundle:null,status:{forecast:'未取得',jma:'未取得',marine:'未取得',amedas:'未取得',satellite:'未取得',runs:'未取得'}};
+  const nativeFetch=window.fetch.bind(window);
+  window.fetch=async(input,init)=>{
+    const url=typeof input==='string'?input:input?.url||String(input);
+    const t=Date.now();
+    try{
+      const res=await nativeFetch(input,init);
+      recordFetch(url,res.status,Date.now()-t);
+      return res;
+    }catch(e){
+      recordFetch(url,'ERR',Date.now()-t,String(e.message||e));
+      throw e;
+    }
+  };
   document.addEventListener('DOMContentLoaded',()=>{try{bindStaticUi();load(false);renderLogs();registerServiceWorker()}catch(e){console.error(e);text('mainTitle','初期化失敗');text('mainReason','画面初期化でエラーが出ました。ファイルを再配置してください。')}});
-  function bindStaticUi(){ $('#refreshBtn')?.addEventListener('click',()=>load(true)); $('#openLogBtn')?.addEventListener('click',()=>$('#logDialog')?.showModal()); $('#closeLogBtn')?.addEventListener('click',()=>$('#logDialog')?.close()); $('#logForm')?.addEventListener('submit',e=>{e.preventDefault();saveLog();$('#logDialog')?.close()}); const b='https://www.jma.go.jp/bosai'; $('#nowcastLink').href=`${b}/nowc/#lat:${CFG.lat}/lon:${CFG.lon}/zoom:11/colordepth:normal/elements:hrpns&slmcs`; $('#himawariLink').href=`${b}/map.html#6/${CFG.lat}/${CFG.lon}/&elem=ir&contents=himawari`; }
+  function bindStaticUi(){ $('#refreshBtn')?.addEventListener('click',()=>load(true)); $('#openLogBtn')?.addEventListener('click',()=>$('#logDialog')?.showModal()); $('#closeLogBtn')?.addEventListener('click',()=>$('#logDialog')?.close()); $('#logForm')?.addEventListener('submit',e=>{e.preventDefault();saveLog();$('#logDialog')?.close()});
+    $('#copyDebugBtn')?.addEventListener('click',copyDebugLog);
+    $('#saveDebugBtn')?.addEventListener('click',saveDebugLogFile);
+    $('#runTestBtn')?.addEventListener('click',runConnectionTest);
+    $('#clearCacheBtn')?.addEventListener('click',clearAppCache); const b='https://www.jma.go.jp/bosai'; $('#nowcastLink').href=`${b}/nowc/#lat:${CFG.lat}/lon:${CFG.lon}/zoom:11/colordepth:normal/elements:hrpns&slmcs`; $('#himawariLink').href=`${b}/map.html#6/${CFG.lat}/${CFG.lon}/&elem=ir&contents=himawari`; }
   async function load(force){setLoading(true);try{
     state.status={forecast:'取得中',jma:'取得中',marine:'取得中',amedas:'取得中',satellite:'取得中',runs:'取得中'};
     updateStatus();
@@ -14,50 +31,88 @@
     if(!bundle.forecast.daily.some(d=>d.date===state.selectedDate))state.selectedDate=bundle.forecast.daily[0]?.date||todayKey();
     writeCache(bundle);renderAll();toast('更新しました')
   }catch(e){console.error(e);const cached=readCache();
-    if(isUsableCache(cached)){state.bundle=cached;state.status=normalizeStatus(cached.status);state.selectedDate ||= todayKey();renderAll('最新取得に失敗。前回データを表示しています。')}
+    if(isUsableCache(cached)){
+      const fallback={...cached,status:normalizeStatus({...cached.status,forecast:'前回'})};
+      state.bundle=fallback;state.status=fallback.status;state.selectedDate ||= todayKey();
+      renderAll();
+      toast('最新取得に失敗。前回データを表示中');
+    }
     else{text('mainTitle','取得失敗');text('mainReason','通信またはAPI取得に失敗しました。前回データがないため表示できません。GitHub Pages上で開くか、少し待って更新してください。');state.status=normalizeStatus({...state.status,forecast:'失敗'});updateStatus()}
   }finally{setLoading(false)}}
   async function fetchBundle(){const status={forecast:'取得中',jma:'取得中',marine:'取得中',amedas:'取得中',satellite:'取得中',runs:'取得中'};
     const [forecast,jma,marine,amedas,satellite]=await Promise.allSettled([fetchForecast(),fetchJma(),fetchMarine(),fetchAmedas(),fetchSatelliteRadiation()]);
-    if(forecast.status!=='fulfilled')throw forecast.reason;
-    const history=buildForecastHistory(forecast.value);
-    saveForecastHistory(forecast.value);
-    status.forecast='OK';
+    if(forecast.status!=='fulfilled'&&jma.status!=='fulfilled')throw forecast.reason||jma.reason||new Error('main forecast unavailable');
+    const forecastData=forecast.status==='fulfilled'?forecast.value:jma.value;
+
+    let history={type:'local-history',samples:0,hourly:[]};
+    let historyError='';
+    try{
+      history=buildForecastHistory(forecastData);
+      saveForecastHistory(forecastData);
+    }catch(e){
+      historyError=String(e?.message||e||'history error');
+      history={type:'local-history',samples:0,hourly:[],error:historyError};
+      console.warn('forecast history skipped',e);
+    }
+
+    status.forecast=forecast.status==='fulfilled'?'OK':'JMA代替';
     status.jma=jma.status==='fulfilled'?'OK':'失敗';
     status.marine=marine.status==='fulfilled'?'OK':'失敗';
-    status.amedas=amedas.status==='fulfilled'?'OK':'失敗';
+    status.amedas=amedas.status==='fulfilled'?'OK':'補助未使用';
     status.satellite=satellite.status==='fulfilled'?'OK':'失敗';
-    status.runs=history.samples>0?'OK':'初回';
+    status.runs=historyError?'履歴エラー':(history.samples>0?'OK':'記録開始');
+    status.forecastError=forecast.status==='fulfilled'?'':String(forecast.reason?.message||forecast.reason||'');
     status.satelliteError=satellite.status==='fulfilled'?'':String(satellite.reason?.message||satellite.reason||'');
-    status.runsError='';
+    status.runsError=historyError;
     status.amedasError=amedas.status==='fulfilled'?'':String(amedas.reason?.message||amedas.reason||'');
-    return{version:CFG.appVersion,updatedAt:new Date().toISOString(),forecast:forecast.value,jma:jma.status==='fulfilled'?jma.value:null,marine:marine.status==='fulfilled'?marine.value:null,amedas:amedas.status==='fulfilled'?amedas.value:null,satellite:satellite.status==='fulfilled'?satellite.value:null,runs:history,status:normalizeStatus(status)}
+
+    return{version:CFG.appVersion,updatedAt:new Date().toISOString(),forecast:forecastData,jma:jma.status==='fulfilled'?jma.value:null,marine:marine.status==='fulfilled'?marine.value:null,amedas:amedas.status==='fulfilled'?amedas.value:null,satellite:satellite.status==='fulfilled'?satellite.value:null,runs:history,status:normalizeStatus(status)}
   }
   async function fetchForecast(){
-    const attempts=[
+    const essentialAttempts=[
       {
-        hourly:['temperature_2m','relative_humidity_2m','precipitation_probability','precipitation','weather_code','cloud_cover','cloud_cover_low','cloud_cover_mid','cloud_cover_high','sunshine_duration','shortwave_radiation','uv_index','wind_speed_10m','wind_gusts_10m'],
-        daily:['weather_code','temperature_2m_max','temperature_2m_min','precipitation_sum','precipitation_probability_max','wind_speed_10m_max','sunshine_duration','uv_index_max','shortwave_radiation_sum']
-      },
-      {
-        hourly:['temperature_2m','relative_humidity_2m','precipitation_probability','precipitation','weather_code','cloud_cover','sunshine_duration','shortwave_radiation','uv_index','wind_speed_10m'],
-        daily:['weather_code','temperature_2m_max','temperature_2m_min','precipitation_sum','precipitation_probability_max','wind_speed_10m_max','sunshine_duration','uv_index_max']
+        hourly:['temperature_2m','precipitation_probability','precipitation','weather_code','cloud_cover','sunshine_duration','shortwave_radiation','uv_index','wind_speed_10m'],
+        daily:['weather_code','temperature_2m_max','temperature_2m_min','precipitation_sum','precipitation_probability_max','uv_index_max','sunshine_duration']
       },
       {
         hourly:['temperature_2m','precipitation_probability','precipitation','weather_code','cloud_cover','shortwave_radiation','uv_index','wind_speed_10m'],
         daily:['weather_code','temperature_2m_max','temperature_2m_min','precipitation_sum','precipitation_probability_max']
+      },
+      {
+        hourly:['temperature_2m','precipitation','weather_code','cloud_cover','shortwave_radiation','wind_speed_10m'],
+        daily:['weather_code','temperature_2m_max','temperature_2m_min','precipitation_sum']
       }
     ];
-    let lastErr=null;
-    for(const a of attempts){
-      const qs=new URLSearchParams({latitude:CFG.lat,longitude:CFG.lon,timezone:CFG.tz,forecast_days:String(CFG.days),hourly:a.hourly.join(','),daily:a.daily.join(',')});
-      try{
-        const res=await fetch(`https://api.open-meteo.com/v1/forecast?${qs}`,{cache:'no-store'});
-        if(!res.ok){lastErr=new Error(`forecast ${res.status}`);continue}
-        return normalizeForecast(await res.json());
-      }catch(e){lastErr=e}
+    const detailVars={
+      hourly:['relative_humidity_2m','cloud_cover_low','cloud_cover_mid','cloud_cover_high','wind_gusts_10m'],
+      daily:['wind_speed_10m_max','shortwave_radiation_sum']
+    };
+    let base=null,lastErr=null;
+    for(const a of essentialAttempts){
+      try{base=await fetchForecastPart(a.hourly,a.daily);break}catch(e){lastErr=e}
     }
-    throw lastErr||new Error('forecast unavailable');
+    if(!base)throw lastErr||new Error('forecast unavailable');
+    const detail=await fetchForecastPart(detailVars.hourly,detailVars.daily).catch(()=>null);
+    return mergeForecasts(base,detail);
+  }
+  async function fetchForecastPart(hourlyVars,dailyVars){
+    const qs=new URLSearchParams({latitude:CFG.lat,longitude:CFG.lon,timezone:CFG.tz,forecast_days:String(CFG.days),hourly:hourlyVars.join(','),daily:dailyVars.join(',')});
+    const res=await fetch(`https://api.open-meteo.com/v1/forecast?${qs}`,{cache:'no-store'});
+    if(!res.ok)throw new Error(`forecast ${res.status}`);
+    return normalizeForecast(await res.json());
+  }
+  function mergeForecasts(base,detail){
+    if(!detail)return base;
+    const byTime=new Map((detail.hourly||[]).map(r=>[r.time,r]));
+    const hourly=(base.hourly||[]).map(r=>{
+      const d=byTime.get(r.time);if(!d)return r;
+      const merged={...r};
+      for(const k of ['humidity','cloudLow','cloudMid','cloudHigh','gust'])if(d[k]!==undefined&&d[k]!==null)merged[k]=d[k];
+      return merged;
+    });
+    const byDate=new Map((detail.daily||[]).map(r=>[r.date,r]));
+    const daily=(base.daily||[]).map(r=>({...r,...(byDate.get(r.date)||{})}));
+    return{hourly,daily};
   }
   async function fetchJma(){const hourly=['temperature_2m','relative_humidity_2m','precipitation','weather_code','cloud_cover','sunshine_duration','shortwave_radiation','wind_speed_10m'].join(',');const daily=['weather_code','temperature_2m_max','temperature_2m_min','precipitation_sum','wind_speed_10m_max','sunshine_duration','shortwave_radiation_sum'].join(',');const qs=new URLSearchParams({latitude:CFG.lat,longitude:CFG.lon,timezone:CFG.tz,forecast_days:'11',hourly,daily});const res=await fetch(`https://api.open-meteo.com/v1/jma?${qs}`,{cache:'no-store'});if(!res.ok)throw new Error(`jma ${res.status}`);return normalizeForecast(await res.json())}
   async function fetchMarine(){const hourly=['wave_height','wave_period','wind_wave_height','swell_wave_height','sea_surface_temperature'].join(',');const qs=new URLSearchParams({latitude:CFG.marineLat,longitude:CFG.marineLon,timezone:CFG.tz,forecast_days:String(CFG.days),hourly});const res=await fetch(`https://marine-api.open-meteo.com/v1/marine?${qs}`,{cache:'no-store'});if(!res.ok)throw new Error(`marine ${res.status}`);const j=await res.json(),h=j.hourly||{};return{hourly:(h.time||[]).map((time,i)=>({time,date:time.slice(0,10),hour:Number(time.slice(11,13)),wave:round(h.wave_height?.[i],2),wavePeriod:round(h.wave_period?.[i],1),windWave:round(h.wind_wave_height?.[i],2),swell:round(h.swell_wave_height?.[i],2),seaTemp:round(h.sea_surface_temperature?.[i],1)}))}}
@@ -124,7 +179,7 @@
   async function fetchAmedas(){
     const latest=await fetchText('https://www.jma.go.jp/bosai/amedas/data/latest_time.txt');
     const latestDate=new Date(latest.trim());
-    const key=amedasKeyFromDate(latestDate);
+    const key=amedasTimeKey(latestDate);
     const [table,map]=await Promise.all([fetchJson('https://www.jma.go.jp/bosai/amedas/const/amedastable.json'),fetchJson(`https://www.jma.go.jp/bosai/amedas/data/map/${key}.json`)]);
     let best=null;
     for(const [code,meta] of Object.entries(table||{})){
@@ -136,7 +191,7 @@
     }
     if(!best)throw new Error('amedas station not found');
     const stamps=[];
-    for(let i=0;i<18;i++){const d=new Date(latestDate.getTime()-i*10*60*1000);stamps.push({date:d,key:amedasKeyFromDate(d)})}
+    for(let i=0;i<18;i++){const d=new Date(latestDate.getTime()-i*10*60*1000);stamps.push({date:d,key:amedasTimeKey(d)})}
     const maps=await Promise.allSettled(stamps.map(s=>fetchJson(`https://www.jma.go.jp/bosai/amedas/data/map/${s.key}.json`)));
     const series=maps.map((r,i)=>{if(r.status!=='fulfilled')return null;const obs=r.value?.[best.code];if(!obs)return null;return{time:stamps[i].date.toISOString(),key:stamps[i].key,sun1h:valueOf(obs.sun1h),rain1h:valueOf(obs.precipitation1h),temp:valueOf(obs.temp),humidity:valueOf(obs.humidity),wind:valueOf(obs.wind)}}).filter(Boolean).reverse();
     return{station:best.meta.kjName||best.meta.enName||best.code,timeKey:key,sun1h:valueOf(best.obs.sun1h),rain1h:valueOf(best.obs.precipitation1h),temp:valueOf(best.obs.temp),humidity:valueOf(best.obs.humidity),wind:valueOf(best.obs.wind),series}
@@ -258,8 +313,11 @@
     if(stability?.note)parts.push(stability.note);
     if(isToday(selectedDate)&&amedas){
       if((amedas.rain1h||0)>0)parts.push(`直近雨${amedas.rain1h}mm。`);
-      if(Number.isFinite(amedas.sun1h))parts.push(`直近日照${amedas.sun1h}h。`);
-      if(amedasTrend?.level&&amedasTrend.level!=='不明')parts.push(`日照推移${amedasTrend.label}。`);
+      if(amedasTrend?.level==='夜間')parts.push('実測日照は夜間のため参考外。');
+      else{
+        if(Number.isFinite(amedas.sun1h))parts.push(`直近日照${amedas.sun1h}h。`);
+        if(amedasTrend?.level&&amedasTrend.level!=='不明')parts.push(`日照推移${amedasTrend.label}。`);
+      }
     }else if(isToday(selectedDate)&&amedasTrend?.level==='衛星補正'){
       parts.push('アメダス日照は未使用。衛星日射で補正中。');
     }else if(!isToday(selectedDate)){
@@ -291,15 +349,19 @@
   }
   function analyzeAmedasTrend(amedas,selectedDate,status){
     if(!isToday(selectedDate))return{level:'対象外',label:'当日確認'};
-    if(status?.amedas==='失敗'){
+    const hour=currentHour();
+    const isNight=hour>=18||hour<5;
+    if(status?.amedas==='失敗'||status?.amedas==='補助未使用'){
+      if(isNight)return{level:'夜間',label:'夜間'};
       if(status?.satellite==='OK')return{level:'衛星補正',label:'衛星補正'};
-      return{level:'失敗',label:'取得失敗'};
+      return{level:'補助未使用',label:'補助未使用'};
     }
     const s=amedas?.series||[];
     const xs=s.filter(r=>Number.isFinite(Number(r.sun1h)));
-    if(!xs.length)return{level:'不明',label:'未取得'};
+    if(!xs.length)return{level:isNight?'夜間':'不明',label:isNight?'夜間':'未取得'};
     const first=average(xs.slice(0,Math.max(1,Math.floor(xs.length/3))).map(r=>r.sun1h));
     const last=average(xs.slice(-Math.max(1,Math.floor(xs.length/3))).map(r=>r.sun1h));
+    if(isNight)return{level:'夜間',label:'夜間'};
     if(last>=0.6)return{level:'上向き',label:'良い'};
     if(last<=0.1)return{level:'日照なし',label:'日照なし'};
     if(last>first+0.15)return{level:'上向き',label:'上向き'};
@@ -307,10 +369,11 @@
     return{level:'横ばい',label:'横ばい'};
   }
   function analyzeRunStability(rows,selectedDate,status){
-    if(status?.runs==='初回')return{level:'初回',label:'記録開始',diff:null,note:'予報安定度は記録開始。次回更新から比較します。'};
+    if(status?.runs==='履歴エラー')return{level:'履歴不足',label:'履歴不足',diff:null,note:'予報履歴は保存待ち。次回更新から比較します。'};
+    if(status?.runs==='初回'||status?.runs==='記録開始')return{level:'記録開始',label:'記録開始',diff:null,note:'予報安定度は記録開始。次回更新から比較します。'};
     if(status?.runs==='取得中')return{level:'不明',label:'取得中',diff:null,note:'予報安定度を取得中。'};
     const xs=(rows||[]).filter(r=>Number.isFinite(Number(r.cloud))&&(Number.isFinite(Number(r.cloud1))||Number.isFinite(Number(r.cloud2))));
-    if(!xs.length)return{level:'初回',label:'記録開始',diff:null,note:'予報安定度は記録開始。次回更新から比較します。'};
+    if(!xs.length)return{level:'記録開始',label:'記録開始',diff:null,note:'予報安定度は記録開始。次回更新から比較します。'};
     const diffs=xs.map(r=>{
       const ds=[];
       if(Number.isFinite(Number(r.cloud1)))ds.push(Math.abs(r.cloud-r.cloud1));
@@ -394,7 +457,7 @@
     if(sunCloudCount+cloudSunCount>=3)return '⛅';
     return '☁️';
   }
-  function setLoading(v){const b=$('#refreshBtn');b.disabled=v;b.textContent=v?'取得中':'更新'} async function fetchText(url){const res=await fetch(url,{cache:'no-store'});if(!res.ok)throw new Error(`${url} ${res.status}`);return res.text()} async function fetchJson(url){const res=await fetch(url,{cache:'no-store'});if(!res.ok)throw new Error(`${url} ${res.status}`);return res.json()} function amedasTimeKey(value){const d=new Date(value);const p=new Intl.DateTimeFormat('sv-SE',{timeZone:CFG.tz,year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false}).formatToParts(d).reduce((a,x)=>(a[x.type]=x.value,a),{});return`${p.year}${p.month}${p.day}${p.hour}${p.minute}${p.second}`} function coord(v){if(Array.isArray(v))return Number(v[0])+Number(v[1]||0)/60;return Number(v)} function valueOf(v){if(Array.isArray(v))return Number(v[0]);const n=Number(v);return Number.isFinite(n)?n:null} function readCache(){
+  function setLoading(v){const b=$('#refreshBtn');b.disabled=v;b.textContent=v?'取得中':'更新'} async function fetchText(url){const res=await fetch(url,{cache:'no-store'});if(!res.ok)throw new Error(`${url} ${res.status}`);return res.text()} async function fetchJson(url){const res=await fetch(url,{cache:'no-store'});if(!res.ok)throw new Error(`${url} ${res.status}`);return res.json()} function amedasKeyFromDate(value){return amedasTimeKey(value)} function amedasTimeKey(value){const d=new Date(value);const p=new Intl.DateTimeFormat('sv-SE',{timeZone:CFG.tz,year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false}).formatToParts(d).reduce((a,x)=>(a[x.type]=x.value,a),{});return`${p.year}${p.month}${p.day}${p.hour}${p.minute}${p.second}`} function coord(v){if(Array.isArray(v))return Number(v[0])+Number(v[1]||0)/60;return Number(v)} function valueOf(v){if(Array.isArray(v))return Number(v[0]);const n=Number(v);return Number.isFinite(n)?n:null} function readCache(){
     try{
       const current=JSON.parse(localStorage.getItem(CFG.cacheKey));
       if(isUsableCache(current))return current;
@@ -414,10 +477,136 @@
     amedas:s.amedas||'未取得',
     satellite:s.satellite||'未取得',
     runs:s.runs||'未取得',
+    forecastError:s.forecastError||'',
     satelliteError:s.satelliteError||'',
     runsError:s.runsError||'',
     amedasError:s.amedasError||''
   }}
   function writeCache(b){try{localStorage.setItem(CFG.cacheKey,JSON.stringify({...b,version:CFG.appVersion,status:normalizeStatus(b.status)}))}catch{}}
-  function registerServiceWorker(){if('serviceWorker'in navigator)navigator.serviceWorker.register('./sw.js').catch(console.warn)} function toast(msg){const el=$('#toast');el.textContent=msg;el.classList.add('show');clearTimeout(toast.timer);toast.timer=setTimeout(()=>el.classList.remove('show'),1800)} function $(id){return document.getElementById(id.replace(/^#/,''))} function text(id,v){const el=$(id);if(el)el.textContent=v} function number(v,f=0){const n=Number(v);return Number.isFinite(n)?n:f} function round(v,d=0){const n=Number(v);if(!Number.isFinite(n))return null;const p=10**d;return Math.round(n*p)/p} function clamp(v){return Math.max(0,Math.min(100,Number(v)||0))} function sum(arr){return arr.filter(v=>Number.isFinite(Number(v))).reduce((a,b)=>a+Number(b),0)} function average(arr){const xs=arr.filter(v=>Number.isFinite(Number(v))).map(Number);return xs.length?sum(xs)/xs.length:100} function maximum(arr){const xs=arr.filter(v=>Number.isFinite(Number(v))).map(Number);return xs.length?Math.max(...xs):0} function fmt(v){return Number.isFinite(Number(v))?String(Math.round(Number(v)*10)/10).replace('.0',''):'-'} function pct(v){return Number.isFinite(Number(v))?`${Math.round(Number(v))}%`:'-'} function minute(v){return Number.isFinite(Number(v))?`${Math.round(Number(v))}分`:'-'} function pad(v){return String(v).padStart(2,'0')} function todayKey(){return new Intl.DateTimeFormat('sv-SE',{timeZone:CFG.tz,year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date())} function currentHour(){return Number(new Intl.DateTimeFormat('en-GB',{timeZone:CFG.tz,hour:'2-digit',hour12:false}).format(new Date()))} function isToday(d){return d===todayKey()} function weekday(d){return['日','月','火','水','木','金','土'][new Date(`${d}T00:00:00+09:00`).getDay()]} function shortDate(d){const x=new Date(`${d}T00:00:00+09:00`);return`${x.getMonth()+1}/${x.getDate()}`} function dateLabel(d){return`${shortDate(d)}（${weekday(d)}）`} function escapeHtml(v){return String(v).replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]))} function weatherText(code){return{0:'快晴',1:'晴れ',2:'一部曇り',3:'曇り',45:'霧',48:'霧氷',51:'弱い霧雨',53:'霧雨',55:'強い霧雨',61:'弱い雨',63:'雨',65:'強い雨',80:'弱いにわか雨',81:'にわか雨',82:'強いにわか雨',95:'雷雨',96:'雷雨・雹',99:'雷雨・強い雹'}[Number(code)]||'曇り'} function weatherIcon(code){code=Number(code);if(code===0)return'☀️';if(code===1)return'🌤️';if(code===2)return'⛅';if(code===3)return'☁️';if([45,48].includes(code))return'🌫️';if([51,53,55,61,63,65,80,81,82].includes(code))return'🌧️';if([95,96,99].includes(code))return'⛈️';return'☁️'}
+  
+  function recordFetch(url,status,ms,error=''){
+    try{
+      const arr=JSON.parse(sessionStorage.getItem(CFG.debugKey)||'[]');
+      const item={time:new Date().toISOString(),url:String(url).slice(0,240),status,ms,error:String(error||'').slice(0,240)};
+      const last=arr[arr.length-1];
+      const now=Date.parse(item.time);
+      const lastTime=last?Date.parse(last.time):0;
+      const same=last&&last.url===item.url&&String(last.status)===String(item.status)&&Math.abs(now-lastTime)<2000;
+      if(same){
+        last.ms=Math.min(Number(last.ms)||ms,ms);
+        last.count=(last.count||1)+1;
+        if(item.error&&!last.error)last.error=item.error;
+      }else{
+        arr.push(item);
+      }
+      sessionStorage.setItem(CFG.debugKey,JSON.stringify(arr.slice(-50)));
+    }catch{}
+  }
+  function buildDebugLog(){
+    const selected=state.selectedDate||todayKey();
+    const b=state.bundle||readCache();
+    const status=normalizeStatus(state.status||b?.status||{});
+    const rows=b?.forecast?.hourly?targetRows(b.forecast.hourly,selected):[];
+    const sampleRows=rows.slice(0,4).map(r=>({time:`${r.date} ${pad(r.hour)}:00`,weather:r.weather,cloud:r.cloud,sunMin:r.sunMin,uv:r.uv,rainProb:r.rainProb,rain:r.rain,wind:r.wind}));
+    const cache=readCache();
+    let sw={supported:'serviceWorker'in navigator,controller:!!navigator.serviceWorker?.controller,state:navigator.serviceWorker?.controller?.state||null};
+    const debugFetches=(()=>{try{return JSON.parse(sessionStorage.getItem(CFG.debugKey)||'[]')}catch{return[]}})();
+    const log={
+      appVersion:CFG.appVersion,
+      timestamp:new Date().toISOString(),
+      url:location.href,
+      protocol:location.protocol,
+      isLocalFile:location.protocol==='file:',
+      online:navigator.onLine,
+      userAgent:navigator.userAgent,
+      language:navigator.language,
+      timezone:Intl.DateTimeFormat().resolvedOptions().timeZone,
+      selectedDate:selected,
+      stateStatus:status,
+      bundleUpdatedAt:b?.updatedAt||null,
+      cacheExists:!!cache,
+      cacheUpdatedAt:cache?.updatedAt||null,
+      forecastHours:b?.forecast?.hourly?.length||0,
+      jmaHours:b?.jma?.hourly?.length||0,
+      marineHours:b?.marine?.hourly?.length||0,
+      satelliteHours:b?.satellite?.hourly?.length||0,
+      amedas:b?.amedas?{station:b.amedas.station,timeKey:b.amedas.timeKey,sun1h:b.amedas.sun1h,rain1h:b.amedas.rain1h,temp:b.amedas.temp,humidity:b.amedas.humidity,seriesCount:b.amedas.series?.length||0}:null,
+      runs:b?.runs?{type:b.runs.type,samples:b.runs.samples,hours:b.runs.hourly?.length||0}:null,
+      mainView:{
+        date:document.getElementById('selectedDate')?.textContent||'',
+        title:document.getElementById('mainTitle')?.textContent||'',
+        reason:document.getElementById('mainReason')?.textContent||'',
+        sunnyHours:document.getElementById('sunnyHours')?.textContent||'',
+        tanLevel:document.getElementById('tanLevel')?.textContent||'',
+        rainLevel:document.getElementById('rainLevel')?.textContent||'',
+        seaLevel:document.getElementById('seaLevel')?.textContent||'',
+        confidence:document.getElementById('confidence')?.textContent||'',
+        satSignal:document.getElementById('satSignal')?.textContent||'',
+        amedasTrend:document.getElementById('amedasTrend')?.textContent||'',
+        compareNote:document.getElementById('compareNote')?.textContent||''
+      },
+      sampleRows,
+      serviceWorker:sw,
+      recentFetches:debugFetches
+    };
+    return log;
+  }
+  function debugText(){return JSON.stringify(buildDebugLog(),null,2)}
+  async function copyDebugLog(){
+    const txt=debugText();
+    const preview=$('#debugPreview'); if(preview)preview.textContent=txt;
+    try{await navigator.clipboard.writeText(txt);toast('診断ログをコピーしました')}
+    catch(e){toast('コピー不可。ログ欄から手動コピーしてください')}
+  }
+  function saveDebugLogFile(){
+    const txt=debugText();
+    const preview=$('#debugPreview'); if(preview)preview.textContent=txt;
+    const blob=new Blob([txt],{type:'application/json'});
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a');
+    const stamp=new Date().toISOString().replace(/[:.]/g,'-');
+    a.href=url;a.download=`takamatsu-weather-debug-${stamp}.json`;
+    document.body.appendChild(a);a.click();a.remove();
+    URL.revokeObjectURL(url);
+    toast('診断ログを保存しました');
+  }
+  async function runConnectionTest(){
+    const tests=[
+      ['通常予報','https://api.open-meteo.com/v1/forecast?latitude=34.3428&longitude=134.0466&timezone=Asia%2FTokyo&forecast_days=1&hourly=temperature_2m,weather_code,cloud_cover,precipitation_probability'],
+      ['JMA','https://api.open-meteo.com/v1/jma?latitude=34.3428&longitude=134.0466&timezone=Asia%2FTokyo&forecast_days=1&hourly=temperature_2m,weather_code,cloud_cover,precipitation'],
+      ['海況','https://marine-api.open-meteo.com/v1/marine?latitude=34.35&longitude=134.05&timezone=Asia%2FTokyo&forecast_days=1&hourly=wave_height,sea_surface_temperature'],
+      ['衛星日射','https://satellite-api.open-meteo.com/v1/archive?latitude=34.3428&longitude=134.0466&timezone=Asia%2FTokyo&past_days=1&forecast_days=1&models=satellite_radiation_seamless&hourly=shortwave_radiation'],
+      ['アメダス最新','https://www.jma.go.jp/bosai/amedas/data/latest_time.txt'],
+      ['アメダス表','https://www.jma.go.jp/bosai/amedas/const/amedastable.json']
+    ];
+    const results=[];
+    for(const [name,url] of tests){
+      const t=Date.now();
+      try{
+        const res=await fetch(url,{cache:'no-store'});
+        results.push({name,status:res.status,ok:res.ok,ms:Date.now()-t,url});
+        recordFetch(url,res.status,Date.now()-t);
+      }catch(e){
+        results.push({name,status:'ERR',ok:false,ms:Date.now()-t,error:String(e.message||e),url});
+        recordFetch(url,'ERR',Date.now()-t,String(e.message||e));
+      }
+    }
+    const txt=JSON.stringify({timestamp:new Date().toISOString(),protocol:location.protocol,online:navigator.onLine,results},null,2);
+    const el=$('#debugTestResult'); if(el)el.textContent=txt;
+    const prev=$('#debugPreview'); if(prev)prev.textContent=txt;
+    $('#debugDialog')?.showModal();
+    toast('接続テスト完了');
+  }
+  async function clearAppCache(){
+    try{
+      localStorage.removeItem(CFG.cacheKey);
+      for(const key of CFG.legacyCacheKeys||[])localStorage.removeItem(key);
+      localStorage.removeItem(CFG.historyKey);
+      sessionStorage.removeItem(CFG.debugKey);
+      if('caches'in window){const keys=await caches.keys();await Promise.all(keys.filter(k=>k.includes('takamatsu-weather')).map(k=>caches.delete(k)))}
+      toast('キャッシュを初期化しました');
+      const p=$('#debugPreview'); if(p)p.textContent='キャッシュを初期化しました。ページを再読み込みしてください。';
+    }catch(e){toast('初期化に失敗しました')}
+  }
+function registerServiceWorker(){if('serviceWorker'in navigator)navigator.serviceWorker.register('./sw.js').catch(console.warn)} function toast(msg){const el=$('#toast');el.textContent=msg;el.classList.add('show');clearTimeout(toast.timer);toast.timer=setTimeout(()=>el.classList.remove('show'),1800)} function $(id){return document.getElementById(id.replace(/^#/,''))} function text(id,v){const el=$(id);if(el)el.textContent=v} function nv(v){const n=Number(v);return Number.isFinite(n)?n:null} function number(v,f=0){const n=Number(v);return Number.isFinite(n)?n:f} function round(v,d=0){const n=Number(v);if(!Number.isFinite(n))return null;const p=10**d;return Math.round(n*p)/p} function clamp(v){return Math.max(0,Math.min(100,Number(v)||0))} function sum(arr){return arr.filter(v=>Number.isFinite(Number(v))).reduce((a,b)=>a+Number(b),0)} function average(arr){const xs=arr.filter(v=>Number.isFinite(Number(v))).map(Number);return xs.length?sum(xs)/xs.length:100} function maximum(arr){const xs=arr.filter(v=>Number.isFinite(Number(v))).map(Number);return xs.length?Math.max(...xs):0} function fmt(v){return Number.isFinite(Number(v))?String(Math.round(Number(v)*10)/10).replace('.0',''):'-'} function pct(v){return Number.isFinite(Number(v))?`${Math.round(Number(v))}%`:'-'} function minute(v){return Number.isFinite(Number(v))?`${Math.round(Number(v))}分`:'-'} function pad(v){return String(v).padStart(2,'0')} function todayKey(){return new Intl.DateTimeFormat('sv-SE',{timeZone:CFG.tz,year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date())} function currentHour(){return Number(new Intl.DateTimeFormat('en-GB',{timeZone:CFG.tz,hour:'2-digit',hour12:false}).format(new Date()))} function isToday(d){return d===todayKey()} function weekday(d){return['日','月','火','水','木','金','土'][new Date(`${d}T00:00:00+09:00`).getDay()]} function shortDate(d){const x=new Date(`${d}T00:00:00+09:00`);return`${x.getMonth()+1}/${x.getDate()}`} function dateLabel(d){return`${shortDate(d)}（${weekday(d)}）`} function escapeHtml(v){return String(v).replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]))} function weatherText(code){return{0:'快晴',1:'晴れ',2:'一部曇り',3:'曇り',45:'霧',48:'霧氷',51:'弱い霧雨',53:'霧雨',55:'強い霧雨',61:'弱い雨',63:'雨',65:'強い雨',80:'弱いにわか雨',81:'にわか雨',82:'強いにわか雨',95:'雷雨',96:'雷雨・雹',99:'雷雨・強い雹'}[Number(code)]||'曇り'} function weatherIcon(code){code=Number(code);if(code===0)return'☀️';if(code===1)return'🌤️';if(code===2)return'⛅';if(code===3)return'☁️';if([45,48].includes(code))return'🌫️';if([51,53,55,61,63,65,80,81,82].includes(code))return'🌧️';if([95,96,99].includes(code))return'⛈️';return'☁️'}
 })();
