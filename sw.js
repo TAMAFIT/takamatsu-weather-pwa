@@ -1,17 +1,28 @@
-const CACHE_NAME = 'takamatsu-weather-v1';
-const FILES = ['./', './index.html', './style.css', './app.js', './manifest.webmanifest', './icons/icon.svg'];
+const CACHE_NAME = 'takamatsu-weather-v3';
+const FILES = [
+  './',
+  './index.html',
+  './style.css',
+  './enhancements.css',
+  './app.js',
+  './enhancements.js',
+  './manifest.webmanifest',
+  './icons/icon.svg'
+];
 
 self.addEventListener('install', event => {
-  event.waitUntil(caches.open(CACHE_NAME).then(cache => cache.addAll(FILES)));
+  event.waitUntil(caches.open(CACHE_NAME).then(cache => cache.addAll(FILES)).then(() => self.skipWaiting()));
 });
 
 self.addEventListener('activate', event => {
-  event.waitUntil(self.clients.claim());
+  event.waitUntil(
+    caches.keys()
+      .then(keys => Promise.all(keys.filter(key => key !== CACHE_NAME).map(key => caches.delete(key))))
+      .then(() => self.clients.claim())
+  );
 });
 
 self.addEventListener('fetch', event => {
   if (event.request.method !== 'GET') return;
-  event.respondWith(
-    fetch(event.request).catch(() => caches.match(event.request))
-  );
+  event.respondWith(fetch(event.request).catch(() => caches.match(event.request)));
 });
