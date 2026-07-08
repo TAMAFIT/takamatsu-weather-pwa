@@ -1,24 +1,25 @@
-# 高松天気チェッカー mock UI v6 accuracy
+# 高松天気チェッカー mock UI v6.1 status fix
 
-無料範囲で精度補強を追加した版です。
+v6で追加した精度補強の表示・取得状態を整理した版です。
 
-## 追加したもの
+## 修正内容
 
-- Open-Meteo Satellite Radiation API
-  - 衛星から推定した日射量を取得
-  - 「晴れ予報だが実際に日射が弱い」を補正
-- アメダス日照の時系列
-  - 最新値だけでなく、直近約3時間の推移を取得
-  - 実測日照が上向き/日照なし/横ばいかを判定
-- Previous Model Runs API
-  - 1日前/2日前の予報と現在予報のズレを見る
-  - 予報の安定度を信頼度に反映
-
-## UI追加
-
-- 判断材料に「衛星日射」「実測日照」を追加
-- 取得状況に「衛星日射」「安定度」を追加
-- compareNoteに衛星日射・実測日照推移・予報安定度を追記
+- 古いlocalStorageキャッシュを読まないように、アプリ内部バージョンとキャッシュキーを更新
+- `satellite / runs` が入っていない古いキャッシュは無視して再取得
+- 取得中 / OK / 失敗 / 未取得 を明確化
+- 衛星日射・実測日照の `--` 表示をなるべく廃止
+- 未来日では
+  - 衛星日射: 当日確認
+  - 実測日照: 当日確認
+  と表示
+- 今日で取得できない場合は
+  - 取得失敗
+  - 夜/待ち
+  - 日照なし
+  などに分けて表示
+- Satellite Radiation APIは `shortwave_radiation + sunshine_duration` で試し、失敗時は `shortwave_radiation` のみで再試行
+- Previous Model Runs APIはモデル指定なしに変更し、失敗時は変数セットを変えて再試行
+- 判定材料の説明文にも、衛星日射・予報安定度・実測日照の状態を自然な文言で反映
 
 ## 維持
 
@@ -26,8 +27,8 @@
 - 9:00〜17:00判定
 - 最高 / 良い / 普通 / 弱い
 - 夜背景は今日だけ
-- 既存のOpen-Meteo通常予報 / JMA / Marine / アメダス
+- Open-Meteo通常予報 / JMA / Marine / アメダス / 衛星日射 / Previous Runs
 
 ## 確認URL
 
-https://TAMAFIT.github.io/takamatsu-weather-pwa/?v=mock-ui6
+https://TAMAFIT.github.io/takamatsu-weather-pwa/?v=mock-ui61
