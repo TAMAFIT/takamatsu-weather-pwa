@@ -21,7 +21,7 @@
         <div class="brand-icon" aria-hidden="true">☁️</div>
         <div>
           <h1>高松市 天気ダッシュボード</h1>
-          <p>1週間・3時間ごとの簡易予報</p>
+          <p>高松特化・雨リスク判断PWA</p>
         </div>
       </div>
       <div class="control-row">
@@ -35,6 +35,37 @@
     </header>
 
     <main>
+      <section class="decision-card card" aria-labelledby="decisionTitle">
+        <div class="decision-top">
+          <div>
+            <p class="section-kicker">今から3時間の判断</p>
+            <h2 id="decisionTitle">取得待ち</h2>
+            <p id="decisionMessage" class="decision-message">更新ボタンで最新データを取得します。</p>
+          </div>
+          <div id="decisionRisk" class="decision-risk risk-badge risk-mid">--</div>
+        </div>
+
+        <div class="decision-grid">
+          <div class="decision-mini"><span>危険時間帯</span><strong id="dangerTime">--</strong></div>
+          <div class="decision-mini"><span>短時間外出</span><strong id="shortOuting">--</strong></div>
+          <div class="decision-mini"><span>日山判断</span><strong id="hikingAdvice">--</strong></div>
+        </div>
+
+        <div id="nextHours" class="next-hours" aria-label="今から3時間の時間別リスク"></div>
+
+        <div class="model-compare">
+          <div class="model-compare-header">
+            <span>予報一致度</span>
+            <strong id="agreementScore">--</strong>
+          </div>
+          <div class="model-risk-row">
+            <div><span>通常予報</span><strong id="baseRisk">--</strong></div>
+            <div><span>JMA予報</span><strong id="jmaRisk">--</strong></div>
+          </div>
+          <p id="agreementComment">Open-Meteo通常予報とJMA APIを比較して、予報の割れ方を表示します。</p>
+        </div>
+      </section>
+
       <section class="summary-card card" aria-labelledby="summaryTitle">
         <div class="summary-left">
           <p id="summaryTitle" class="section-kicker">現在の天気</p>
@@ -52,14 +83,14 @@
       </section>
 
       <section class="section weekly-section" aria-labelledby="weeklyTitle">
-        <div class="section-heading"><h2 id="weeklyTitle">1週間の予報</h2><span class="section-note">横スクロール</span></div>
+        <div class="section-heading"><h2 id="weeklyTitle">1週間の予報</h2><span class="section-note">雨リスク優先</span></div>
         <div id="weeklyList" class="weekly-list" role="listbox" aria-label="日別予報">
           <div class="skeleton-card"></div><div class="skeleton-card"></div><div class="skeleton-card"></div>
         </div>
       </section>
 
       <section class="section hourly-section" aria-labelledby="hourlyTitle">
-        <div class="section-heading"><h2 id="hourlyTitle">今日の3時間ごとの予報</h2><span id="selectedDateText" class="section-note">--</span></div>
+        <div class="section-heading"><h2 id="hourlyTitle">選択日の3時間ごとの予報</h2><span id="selectedDateText" class="section-note">--</span></div>
         <div class="hourly-table-wrap card">
           <table class="hourly-table">
             <thead><tr><th>時刻</th><th>天気</th><th>気温</th><th>降水確率</th><th>降水量</th><th>風（向き・速さ）</th><th>雨リスク</th></tr></thead>
@@ -71,8 +102,8 @@
       <section class="advice-card card" aria-labelledby="adviceTitle">
         <div class="advice-header"><span class="advice-icon" aria-hidden="true">📋</span><h2 id="adviceTitle">今日の行動アドバイス</h2></div>
         <ul id="adviceList" class="advice-list">
-          <li>午前・午後の雨リスクを見て、外出判断を補助します。</li>
-          <li>降水確率だけでなく、降水量と風も合わせて判定します。</li>
+          <li>今から3時間の雨リスクを優先して、外出判断を補助します。</li>
+          <li>通常予報とJMA予報の割れ方も見て、信用度を出します。</li>
           <li>日山に行く前は、出発直前にもう一度更新してください。</li>
         </ul>
       </section>
@@ -83,7 +114,7 @@
       </section>
 
       <footer class="footer-note">
-        <p>天気データ：<a href="https://open-meteo.com/" target="_blank" rel="noreferrer">Open-Meteo</a></p>
+        <p>天気データ：<a href="https://open-meteo.com/" target="_blank" rel="noreferrer">Open-Meteo</a> / Open-Meteo JMA API</p>
         <p>個人用の判断補助です。警報・雷雨時は気象庁などの公式情報も確認してください。</p>
       </footer>
     </main>
