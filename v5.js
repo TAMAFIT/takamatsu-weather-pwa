@@ -24,7 +24,8 @@ function injectV5App() {
   section.className = 'v5-app';
   section.innerHTML = `
     <div class="v5-hero">
-      <div class="v5-kicker"><span>今から3時間</span><span id="v5Confidence" class="v5-status-pill">判定中</span></div>
+      <div class="v5-kicker"><span>高松・日差し判定</span><button id="v5Refresh" class="v5-refresh" type="button">更新</button></div>
+      <span id="v5Confidence" class="v5-status-pill">判定中</span>
       <h2 id="v5Decision">取得中</h2>
       <p id="v5Reason" class="v5-main-reason">最新データを読み込んでいます。</p>
       <div class="v5-quick-grid">
@@ -70,6 +71,7 @@ function injectV5App() {
   const himawari = `https://www.jma.go.jp/bosai/map.html#6/${lat}/${lon}/&elem=ir&contents=himawari`;
   document.getElementById('v5Nowcast').href = nowcast;
   document.getElementById('v5Himawari').href = himawari;
+  document.getElementById('v5Refresh')?.addEventListener('click', () => document.getElementById('refreshButton')?.click());
   document.getElementById('v5OpenOfficial')?.addEventListener('click', () => window.open(himawari, '_blank', 'noopener'));
   document.getElementById('v5JumpLog')?.addEventListener('click', () => {
     const details = [...document.querySelectorAll('details')].find(d => d.textContent.includes('実際の空'));
@@ -82,7 +84,7 @@ function renderV5WhenReady() {
   const bundle = readBundle();
   if (!bundle?.base?.hourly?.length) {
     setText('v5Decision', '取得中');
-    setText('v5Reason', '更新ボタンを押すと最新データを取得します。');
+    setText('v5Reason', '更新すると最新データを取得します。');
     setTimeout(() => {
       const again = readBundle();
       if (again?.base?.hourly?.length) renderV5(again);
@@ -119,7 +121,8 @@ function pickNextHours(rows, count) {
   const now = new Date();
   const p = new Intl.DateTimeFormat('sv-SE', { timeZone: V5.tz, year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', hour12:false }).formatToParts(now).reduce((a, x) => (a[x.type] = x.value, a), {});
   const key = `${p.year}-${p.month}-${p.day}T${p.hour}:00`;
-  return rows.filter(x => x.time >= key).slice(0, count).length ? rows.filter(x => x.time >= key).slice(0, count) : rows.slice(0, count);
+  const picked = rows.filter(x => x.time >= key).slice(0, count);
+  return picked.length ? picked : rows.slice(0, count);
 }
 
 function judgeSun(row) {
@@ -144,11 +147,11 @@ function summarize(rows, decisions, obs, comparison) {
   const sunAvg = avg(rows.map(x => x.sunshineMinutes));
   const confidence = comparison?.agreement ? `一致度 ${comparison.agreement}` : '判定中';
 
-  if (rainRisk) return { title:'今日は微妙', reason:'降水リスクが高めです。日焼け狙いなら雲画像と実測を見てから判断。', sunText: hasHigh ? '一部可' : '弱い', rainText:'注意', obsText: obsShort(obs), confidence, amedasNote: obsNote(obs) };
-  if (noSunObs && !hasHigh) return { title:'曇り寄り', reason:'予報より実測の日照が弱いです。晴れ表示でも準備前に空を確認。', sunText:'弱い', rainText:'低め', obsText:'日照なし', confidence, amedasNote: obsNote(obs) };
+  if (rainRisk) return { title:'今日は微妙', reason:'雨リスク高め。日焼け狙いなら雲画像と実測確認が必要です。', sunText: hasHigh ? '一部可' : '弱い', rainText:'注意', obsText: obsShort(obs), confidence, amedasNote: obsNote(obs) };
+  if (noSunObs && !hasHigh) return { title:'曇り寄り', reason:'実測の日照が弱いです。晴れ表示でも準備前に空を確認。', sunText:'弱い', rainText:'低め', obsText:'日照なし', confidence, amedasNote: obsNote(obs) };
   if (hasHigh || (strongObs && hasMid)) return { title:'日差し期待', reason:'日照・UV・雲量の条件が比較的良い時間があります。', sunText:'強め', rainText:'低め', obsText: obsShort(obs), confidence, amedasNote: obsNote(obs) };
   if (hasMid) return { title:'少し期待', reason:`平均雲量${percent(cloudAvg)}、平均日照${Math.round(sunAvg || 0)}分。雲次第で使えます。`, sunText:'中', rainText:'低め', obsText: obsShort(obs), confidence, amedasNote: obsNote(obs) };
-  return { title:'日焼け微妙', reason:'雲量が高いか、日照予測が弱いです。晴れマークだけでは信用しない方が安全。', sunText:'弱い', rainText:'低め', obsText: obsShort(obs), confidence, amedasNote: obsNote(obs) };
+  return { title:'日焼け微妙', reason:'雲量が高いか日照予測が弱いです。晴れマークだけでは信用しない方が安全。', sunText:'弱い', rainText:'低め', obsText: obsShort(obs), confidence, amedasNote: obsNote(obs) };
 }
 
 function renderHours(rows) {
@@ -185,7 +188,7 @@ function readAmedasFromDom() {
   return { sun1h: parseNumber(sunText), rain1h: parseNumber(rainText) };
 }
 function obsShort(obs) { if (obs.rain1h && obs.rain1h > 0) return '雨あり'; if (obs.sun1h === null) return '確認中'; if (obs.sun1h <= 0.1) return '日照なし'; if (obs.sun1h >= 0.7) return '日照あり'; return '少し'; }
-function obsNote(obs) { if (obs.rain1h && obs.rain1h > 0) return 'アメダスで降水があります。日焼け目的なら待機寄り。'; if (obs.sun1h === null) return 'アメダス実測を確認中です。'; if (obs.sun1h <= 0.1) return '直近1時間の日照がほぼありません。予報より曇り寄りに見ます。'; if (obs.sun1h >= 0.7) return '直近1時間の日照があります。日焼け判断ではプラス材料です。'; return '実測日照は少なめです。雲が抜けるかが判断ポイント。'; }
+function obsNote(obs) { if (obs.rain1h && obs.rain1h > 0) return 'アメダスで降水あり。日焼け目的なら待機寄り。'; if (obs.sun1h === null) return 'アメダス実測を確認中。'; if (obs.sun1h <= 0.1) return '直近1時間の日照ほぼなし。予報より曇り寄りに見ます。'; if (obs.sun1h >= 0.7) return '直近1時間の日照あり。日焼け判断ではプラス材料。'; return '実測日照は少なめ。雲が抜けるかが判断ポイント。'; }
 
 function readBundle(){ try { return JSON.parse(localStorage.getItem(V5.weatherKey)); } catch { return null; } }
 function readLogs(){ try { return JSON.parse(localStorage.getItem(V5.logKey) || '[]'); } catch { return []; } }
