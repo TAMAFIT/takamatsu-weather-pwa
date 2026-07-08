@@ -2,11 +2,21 @@
 
 高松市の1週間・3時間ごとの天気を確認し、外出・移動・日山登山の判断を補助する静的PWAです。
 
+## v2で追加した機能
+
+- 今から3時間の雨判断カード
+- 危険時間帯の自動抽出
+- Open-Meteo通常予報とOpen-Meteo JMA APIの比較
+- 予報一致度：高 / 中 / 低 / 取得不可
+- 通常予報リスクとJMA予報リスクの比較表示
+- 雨リスク判定ロジックの強化
+- 行動アドバイスの具体化
+
 ## 構成
 
 - `index.html`：画面構造
 - `style.css`：スマホ向けカードUI
-- `app.js`：Open-Meteo取得、雨リスク判定、描画処理
+- `app.js`：Open-Meteo取得、JMA比較、雨リスク判定、描画処理
 - `manifest.webmanifest`：PWA設定
 - `sw.js`：簡易Service Worker
 - `icons/icon.svg`：アプリアイコン
@@ -14,6 +24,15 @@
 ## データ取得
 
 Open-Meteo APIをブラウザから直接取得します。GASやサーバーは不要です。
+
+現在は2系統の予報を取得します。
+
+```text
+https://api.open-meteo.com/v1/forecast
+https://api.open-meteo.com/v1/jma
+```
+
+JMA API側は降水確率を返さないため、JMA比較では主に降水量・天気コード・風速を使って雨リスクを判定しています。
 
 初期地点は高松市中心部付近です。地点を変更する場合は `app.js` の `LOCATION` を編集してください。
 
