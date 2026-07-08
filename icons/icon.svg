@@ -1,13 +1,1 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
-  <title id="title">高松天気</title>
-  <desc id="desc">青い空と雲の天気アプリアイコン</desc>
-  <rect width="512" height="512" rx="116" fill="#1666d8"/>
-  <circle cx="178" cy="190" r="58" fill="#fbbf24"/>
-  <g fill="#ffffff">
-    <circle cx="196" cy="286" r="66"/>
-    <circle cx="274" cy="258" r="82"/>
-    <circle cx="348" cy="300" r="58"/>
-    <rect x="142" y="286" width="260" height="86" rx="43"/>
-  </g>
-  <path d="M171 399h170" stroke="#dbeafe" stroke-width="24" stroke-linecap="round" opacity="0.95"/>
-</svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><rect width="512" height="512" rx="112" fill="#1677e8"/><circle cx="352" cy="150" r="70" fill="#ffd166"/><path d="M52 340c60-42 116-42 176 0s116 42 176 0 116-42 176 0v112H52z" fill="#93d5ff" opacity=".95"/><path d="M52 390c60-32 116-32 176 0s116 32 176 0 116-32 176 0v80H52z" fill="#ffffff" opacity=".9"/><path d="M150 222c-10-61 37-116 100-116 48 0 88 33 98 78 42 4 75 39 75 82 0 46-37 83-83 83H170c-39 0-71-32-71-71 0-30 21-55 51-56z" fill="#fff"/></svg>
