@@ -1,14 +1,26 @@
-# 高松天気チェッカー real-bg clean
+# 高松天気チェッカー mock UI
 
-このZIPは、ユーザーが生成した4枚の背景画像をWebP化して組み込んだクリーン版です。
+モック画像に寄せたリゾートUI版です。
 
-## 残すファイル/フォルダ
+## 構成
+
+- index.html
+- style.css
+- app.js
+- manifest.webmanifest
+- sw.js
+- assets/bg-sunny.webp
+- assets/bg-cloudy.webp
+- assets/bg-rain.webp
+- assets/bg-night.webp
+- icons/icon.svg
+- .nojekyll
+
+## 置き換え方法
+
+GitHub上では、以下だけ残すのが理想です。
 
 - assets/
-  - bg-sunny.webp
-  - bg-cloudy.webp
-  - bg-rain.webp
-  - bg-night.webp
 - icons/
 - .nojekyll
 - app.js
@@ -18,24 +30,8 @@
 - style.css
 - sw.js
 
-## 削除していい旧ファイル
+旧ファイルの theme.js / v5.js / v8.css / v9.js / enhancements.* / assets_small系 は不要です。
 
-- assets_micro/
-- assets_small/
-- assets_tiny/
-- enhancements.css
-- enhancements.js
-- v5.css
-- v5.js
-- v8.css
-- v9.js
-- theme.js
-- README.md
+## 確認URL
 
-## 重要
-
-この版の index.html は theme.js を読み込みません。
-背景切り替えと「夜背景は今日だけ」は app.js 側に入っています。
-
-反映後の確認:
-https://TAMAFIT.github.io/takamatsu-weather-pwa/?v=real-bg1
+https://TAMAFIT.github.io/takamatsu-weather-pwa/?v=mock-ui1

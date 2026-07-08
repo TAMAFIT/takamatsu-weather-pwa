@@ -10,7 +10,7 @@
   <link rel="icon" href="./icons/icon.svg" type="image/svg+xml" />
   <link rel="apple-touch-icon" href="./icons/icon.svg" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
-  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="高松天気" />
   <link rel="preload" href="./assets/bg-sunny.webp" as="image" />
   <link rel="stylesheet" href="./style.css" />
@@ -18,45 +18,129 @@
 <body class="theme-sunny">
   <div class="app" id="app">
     <header class="header">
-      <div>
-        <p class="eyebrow">高松・日焼け/海判断</p>
-        <h1>高松天気チェッカー</h1>
+      <div class="titleBlock">
+        <p class="eyebrow"><span aria-hidden="true">📍</span> 高松・日焼け/海判断</p>
+        <h1>高松天気チェッカー <span aria-hidden="true">🌺</span></h1>
       </div>
-      <button id="refreshBtn" class="refresh" type="button">更新</button>
+      <button id="refreshBtn" class="refresh" type="button"><span aria-hidden="true">↻</span> 更新</button>
     </header>
 
     <main>
       <section class="hero" id="hero">
-        <div class="heroTop">
+        <div class="heroDecor" aria-hidden="true">
+          <span class="decoFlower">🌼</span>
+          <span class="decoPalm">🌴</span>
+          <span class="decoWaves"></span>
+        </div>
+
+        <div class="heroDate"><span aria-hidden="true">🌼</span><strong id="selectedDate">--</strong></div>
+
+        <div class="heroJudgement">
+          <span id="gradeMark" class="gradeMark">--</span>
           <div>
-            <p id="selectedDate" class="dateLabel">--</p>
-            <div class="gradeLine">
-              <span id="gradeMark" class="gradeMark">--</span>
-              <h2 id="mainTitle">取得中</h2>
-            </div>
+            <h2 id="mainTitle">取得中</h2>
+            <p id="mainReason" class="mainReason">9:00〜17:00の1時間データで、海に行く価値と日焼けしやすさを判定します。</p>
           </div>
-          <div id="heroIcon" class="heroIcon" aria-hidden="true">🌊</div>
+          <div id="heroIcon" class="heroIcon" aria-hidden="true">🏖️</div>
         </div>
-        <p id="mainReason" class="mainReason">9:00〜17:00の1時間データで、海に行く価値と日焼けしやすさを判定します。</p>
+
         <div class="meter" aria-label="海日和スコア"><span id="scoreMeter"></span></div>
+
         <div class="quickGrid">
-          <div><span>晴れ継続</span><strong id="sunnyHours">--</strong></div>
-          <div><span>日焼け</span><strong id="tanLevel">--</strong></div>
-          <div><span>雨</span><strong id="rainLevel">--</strong></div>
-          <div><span>風/波</span><strong id="seaLevel">--</strong></div>
+          <div><span class="tileIcon">☀️</span><small>晴れ継続</small><strong id="sunnyHours">--</strong></div>
+          <div><span class="tileIcon">🌺</span><small>日焼け</small><strong id="tanLevel">--</strong></div>
+          <div><span class="tileIcon">🌧️</span><small>雨</small><strong id="rainLevel">--</strong></div>
+          <div><span class="tileIcon">🌊</span><small>風/波</small><strong id="seaLevel">--</strong></div>
         </div>
-        <div class="bestBox"><span>おすすめ</span><strong id="bestTime">--</strong></div>
+
+        <div class="bestBox">
+          <span><span aria-hidden="true">🌴</span> おすすめ</span>
+          <strong id="bestTime">--</strong>
+        </div>
       </section>
 
-      <section class="card"><div class="sectionHead"><h3>1時間ごとの海日和</h3><span>9:00〜17:00</span></div><div id="hourList" class="hourList"><p class="note">データ取得中です。</p></div></section>
-      <section class="card"><div class="sectionHead"><h3>週間の海日和</h3><span id="dayCount">最大16日</span></div><div id="dayStrip" class="dayStrip" aria-label="日別の海日和"></div></section>
-      <section class="card"><div class="sectionHead"><h3>判断材料</h3><span>選択日全体</span></div><div class="evidenceGrid"><div><span>平均雲量</span><strong id="avgCloud">--</strong></div><div><span>日照合計</span><strong id="sunTotal">--</strong></div><div><span>最大UV</span><strong id="uvMax">--</strong></div><div><span>雨リスク</span><strong id="rainRisk">--</strong></div><div><span>風/波</span><strong id="marineRisk">--</strong></div><div><span>信頼度</span><strong id="confidence">--</strong></div></div><p id="compareNote" class="note">通常予報・JMA予報・海況・アメダス実測を統合して表示します。</p></section>
-      <section class="card statusCard"><div class="sectionHead"><h3>取得状況</h3><span id="updatedAt">未取得</span></div><div class="sourceGrid"><div><span>通常予報</span><strong id="sourceForecast">--</strong></div><div><span>JMA</span><strong id="sourceJma">--</strong></div><div><span>海況</span><strong id="sourceMarine">--</strong></div><div><span>アメダス</span><strong id="sourceAmedas">--</strong></div></div></section>
-      <section class="card"><div class="sectionHead"><h3>公式確認</h3><span>最終判断用</span></div><div class="actions"><a id="nowcastLink" target="_blank" rel="noreferrer">雨雲を見る</a><a id="himawariLink" target="_blank" rel="noreferrer">雲画像を見る</a><button id="openLogBtn" type="button">記録する</button></div></section>
-      <section class="card logs"><div class="sectionHead"><h3>外れ補正ログ</h3><span id="logCount">0件</span></div><p class="note">実際に海に行けたか、日焼けできたかを残すと、後で高松用の補正ルールを調整できます。</p><div id="recentLogs" class="recentLogs"></div></section>
+      <section class="card hourCard">
+        <div class="sectionHead">
+          <h3><span aria-hidden="true">🌺</span> 1時間ごとの海日和</h3>
+          <span>≧ 9:00〜17:00 ≦</span>
+        </div>
+        <div id="hourList" class="hourList"><p class="note">データ取得中です。</p></div>
+      </section>
+
+      <section class="card">
+        <div class="sectionHead"><h3>週間の海日和</h3><span id="dayCount">最大16日</span></div>
+        <div id="dayStrip" class="dayStrip" aria-label="日別の海日和"></div>
+      </section>
+
+      <section class="card">
+        <div class="sectionHead"><h3>判断材料</h3><span>選択日全体</span></div>
+        <div class="evidenceGrid">
+          <div><span>平均雲量</span><strong id="avgCloud">--</strong></div>
+          <div><span>日照合計</span><strong id="sunTotal">--</strong></div>
+          <div><span>最大UV</span><strong id="uvMax">--</strong></div>
+          <div><span>雨リスク</span><strong id="rainRisk">--</strong></div>
+          <div><span>風/波</span><strong id="marineRisk">--</strong></div>
+          <div><span>信頼度</span><strong id="confidence">--</strong></div>
+        </div>
+        <p id="compareNote" class="note">通常予報・JMA予報・海況・アメダス実測を統合して表示します。</p>
+      </section>
+
+      <section class="card statusCard">
+        <div class="sectionHead"><h3>取得状況</h3><span id="updatedAt">未取得</span></div>
+        <div class="sourceGrid">
+          <div><span>通常予報</span><strong id="sourceForecast">--</strong></div>
+          <div><span>JMA</span><strong id="sourceJma">--</strong></div>
+          <div><span>海況</span><strong id="sourceMarine">--</strong></div>
+          <div><span>アメダス</span><strong id="sourceAmedas">--</strong></div>
+        </div>
+      </section>
+
+      <section class="card">
+        <div class="sectionHead"><h3>公式確認</h3><span>最終判断用</span></div>
+        <div class="actions">
+          <a id="nowcastLink" target="_blank" rel="noreferrer">雨雲を見る</a>
+          <a id="himawariLink" target="_blank" rel="noreferrer">雲画像を見る</a>
+          <button id="openLogBtn" type="button">記録する</button>
+        </div>
+      </section>
+
+      <section class="card logs">
+        <div class="sectionHead"><h3>外れ補正ログ</h3><span id="logCount">0件</span></div>
+        <p class="note">実際に海に行けたか、日焼けできたかを残すと、後で高松用の補正ルールを調整できます。</p>
+        <div id="recentLogs" class="recentLogs"></div>
+      </section>
     </main>
   </div>
-  <dialog id="logDialog" class="logDialog"><form method="dialog" id="logForm"><h3>実際どうだった？</h3><label>空の状態<select id="skySelect"><option value="晴れ">晴れ</option><option value="薄曇り">薄曇り</option><option value="曇り">曇り</option><option value="雨">雨</option></select></label><label>海・日焼け結果<select id="resultSelect"><option value="行ってよかった">行ってよかった</option><option value="微妙">微妙</option><option value="やめて正解">やめて正解</option><option value="外れた">外れた</option></select></label><label>メモ<textarea id="memoInput" rows="3" placeholder="例：晴れ予報だったが雲が多かった"></textarea></label><div class="dialogActions"><button value="cancel" type="button" id="closeLogBtn">閉じる</button><button value="default" type="submit">保存</button></div></form></dialog>
+
+  <dialog id="logDialog" class="logDialog">
+    <form method="dialog" id="logForm">
+      <h3>実際どうだった？</h3>
+      <label>空の状態
+        <select id="skySelect">
+          <option value="晴れ">晴れ</option>
+          <option value="薄曇り">薄曇り</option>
+          <option value="曇り">曇り</option>
+          <option value="雨">雨</option>
+        </select>
+      </label>
+      <label>海・日焼け結果
+        <select id="resultSelect">
+          <option value="行ってよかった">行ってよかった</option>
+          <option value="微妙">微妙</option>
+          <option value="やめて正解">やめて正解</option>
+          <option value="外れた">外れた</option>
+        </select>
+      </label>
+      <label>メモ
+        <textarea id="memoInput" rows="3" placeholder="例：晴れ予報だったが雲が多かった"></textarea>
+      </label>
+      <div class="dialogActions">
+        <button value="cancel" type="button" id="closeLogBtn">閉じる</button>
+        <button value="default" type="submit">保存</button>
+      </div>
+    </form>
+  </dialog>
+
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
   <script src="./app.js" defer></script>
 </body>
