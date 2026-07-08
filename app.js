@@ -1,6 +1,6 @@
 (() => {
   'use strict';
-  const CFG={lat:34.3428,lon:134.0466,marineLat:34.35,marineLon:134.05,tz:'Asia/Tokyo',days:16,startHour:9,endHour:17,cacheKey:'takamatsu-sea-weather:v10-ui6-5-2',logKey:'takamatsu-sea-weather:logs',appVersion:'v6.5.2-temp-plan-a',historyKey:'takamatsu-sea-weather:forecast-history-v1',autoKey:'takamatsu-sea-weather:auto-verification-v1',legacyCacheKeys:['takamatsu-sea-weather:v10-ui6-2-1','takamatsu-sea-weather:v10-ui6-2','takamatsu-sea-weather:v10-ui6-1','takamatsu-sea-weather:v10-ui6','takamatsu-sea-weather:v10-ui5','takamatsu-sea-weather:v10-ui4','takamatsu-sea-weather:v2-1:last-success']};
+  const CFG={lat:34.3428,lon:134.0466,marineLat:34.35,marineLon:134.05,tz:'Asia/Tokyo',days:16,startHour:9,endHour:17,cacheKey:'takamatsu-sea-weather:v10-ui6-5-3',logKey:'takamatsu-sea-weather:logs',appVersion:'v6.5.3-temp-pill-fix',historyKey:'takamatsu-sea-weather:forecast-history-v1',autoKey:'takamatsu-sea-weather:auto-verification-v1',legacyCacheKeys:['takamatsu-sea-weather:v10-ui6-2-1','takamatsu-sea-weather:v10-ui6-2','takamatsu-sea-weather:v10-ui6-1','takamatsu-sea-weather:v10-ui6','takamatsu-sea-weather:v10-ui5','takamatsu-sea-weather:v10-ui4','takamatsu-sea-weather:v2-1:last-success']};
   const state={selectedDate:null,bundle:null,status:{forecast:'未取得',jma:'未取得',marine:'未取得',amedas:'未取得',satellite:'未取得',runs:'未取得'}};
   const nativeFetch=window.fetch.bind(window);
   window.fetch=async(input,init)=>{
@@ -415,12 +415,14 @@
     const temps=(rows||[]).map(r=>Number(r.temp)).filter(Number.isFinite);
     const invalid=!Number.isFinite(hi)||!Number.isFinite(lo)||(hi===0&&lo===0);
     if(invalid&&temps.length){hi=Math.round(Math.max(...temps));lo=Math.round(Math.min(...temps));}
-    const range=Number.isFinite(hi)&&Number.isFinite(lo)?`最高${Math.round(hi)}℃ / 最低${Math.round(lo)}℃`:'気温 --/--℃';
+    const hiTxt=Number.isFinite(hi)?Math.round(hi):'--';
+    const loTxt=Number.isFinite(lo)?Math.round(lo):'--';
+    const range=`高${hiTxt}℃ / 低${loTxt}℃`;
     if(isToday(selected)){
       const nowHour=currentHour();
       const nearest=(rows||[]).slice().sort((a,b)=>Math.abs(a.hour-nowHour)-Math.abs(b.hour-nowHour))[0];
       const nowT=Number(nearest?.temp);
-      if(Number.isFinite(nowT))return`現在${Math.round(nowT)}℃　${range}`;
+      if(Number.isFinite(nowT))return`今${Math.round(nowT)}℃ / ${range}`;
     }
     return range;
   }
