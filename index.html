@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta name="theme-color" content="#1666d8" />
-  <meta name="description" content="高松市の1週間・3時間ごとの天気を確認し、外出・移動・登山判断を補助するPWAです。" />
+  <meta name="description" content="高松市の天気・雲量・日照・雨リスクを確認し、外出や日焼け判断を補助するPWAです。" />
   <title>高松市 天気ダッシュボード</title>
   <link rel="manifest" href="./manifest.webmanifest" />
   <link rel="icon" href="./icons/icon.svg" type="image/svg+xml" />
@@ -21,7 +21,7 @@
         <div class="brand-icon" aria-hidden="true">☁️</div>
         <div>
           <h1>高松市 天気ダッシュボード</h1>
-          <p>高松特化・雨リスク判断PWA</p>
+          <p>高松特化・晴れ/雨リスク判断PWA</p>
         </div>
       </div>
       <div class="control-row">
@@ -46,9 +46,9 @@
         </div>
 
         <div class="decision-grid">
-          <div class="decision-mini"><span>危険時間帯</span><strong id="dangerTime">--</strong></div>
+          <div class="decision-mini"><span>雲/雨注意</span><strong id="dangerTime">--</strong></div>
           <div class="decision-mini"><span>短時間外出</span><strong id="shortOuting">--</strong></div>
-          <div class="decision-mini"><span>日山判断</span><strong id="hikingAdvice">--</strong></div>
+          <div class="decision-mini"><span>日焼け判断</span><strong id="hikingAdvice">--</strong></div>
         </div>
 
         <div id="nextHours" class="next-hours" aria-label="今から3時間の時間別リスク"></div>
@@ -83,7 +83,7 @@
       </section>
 
       <section class="section weekly-section" aria-labelledby="weeklyTitle">
-        <div class="section-heading"><h2 id="weeklyTitle">1週間の予報</h2><span class="section-note">雨リスク優先</span></div>
+        <div class="section-heading"><h2 id="weeklyTitle">1週間の予報</h2><span class="section-note">晴れ/雨リスク優先</span></div>
         <div id="weeklyList" class="weekly-list" role="listbox" aria-label="日別予報">
           <div class="skeleton-card"></div><div class="skeleton-card"></div><div class="skeleton-card"></div>
         </div>
@@ -102,9 +102,9 @@
       <section class="advice-card card" aria-labelledby="adviceTitle">
         <div class="advice-header"><span class="advice-icon" aria-hidden="true">📋</span><h2 id="adviceTitle">今日の行動アドバイス</h2></div>
         <ul id="adviceList" class="advice-list">
-          <li>今から3時間の雨リスクを優先して、外出判断を補助します。</li>
+          <li>今から3時間の雲量・日照・雨リスクを優先して判断します。</li>
+          <li>晴れ狙いの日は、天気名より雲量と日照時間を重視してください。</li>
           <li>通常予報とJMA予報の割れ方も見て、信用度を出します。</li>
-          <li>日山に行く前は、出発直前にもう一度更新してください。</li>
         </ul>
       </section>
 
