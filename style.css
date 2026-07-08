@@ -573,3 +573,152 @@ h1{margin:0;font-size:25px;line-height:1.08;letter-spacing:-.07em;color:white;fo
     min-height:132px!important;
   }
 }
+
+
+/* =========================================================
+   v4 semantic UI polish:
+   - icon = actual weather only
+   - card color = hourly evaluation
+   - first-view titles shortened by app.js
+   - reduce overlap and improve readability
+   ========================================================= */
+
+/* Hero title text: prevent awkward wrapping for short labels */
+.hero h2{
+  font-size:56px!important;
+  line-height:.98!important;
+  word-break:keep-all!important;
+  overflow-wrap:normal!important;
+}
+.mainReason{
+  max-width:92%!important;
+  font-size:14.5px!important;
+  line-height:1.56!important;
+}
+
+/* Hour card: give the evaluation column real width */
+.hour{
+  grid-template-columns:58px 58px minmax(104px,118px) minmax(160px,1fr)!important;
+  gap:8px!important;
+  align-items:center!important;
+  min-height:96px!important;
+}
+.hour::after{content:none!important;display:none!important}
+
+/* Card color = evaluation. Stronger but not misleading. */
+.hour.great{
+  background:linear-gradient(90deg,rgba(255,248,210,.98),rgba(255,255,255,.94))!important;
+  border-color:rgba(255,205,58,.82)!important;
+}
+.hour.good{
+  background:linear-gradient(90deg,rgba(218,255,252,.98),rgba(255,255,255,.94))!important;
+  border-color:rgba(64,215,214,.76)!important;
+}
+.hour.ok{
+  background:linear-gradient(90deg,rgba(255,240,207,.98),rgba(255,255,255,.93))!important;
+  border-color:rgba(255,165,60,.74)!important;
+}
+.hour.bad{
+  background:linear-gradient(90deg,rgba(233,242,249,.98),rgba(255,255,255,.92))!important;
+  border-color:rgba(155,176,194,.66)!important;
+}
+
+/* Left bar = evaluation, not weather */
+.hour.great::before{background:linear-gradient(180deg,#ffc42e,#fff0a7)!important}
+.hour.good::before{background:linear-gradient(180deg,#2fd6d0,#cbfff6)!important}
+.hour.ok::before{background:linear-gradient(180deg,#ff9b2c,#ffe7a0)!important}
+.hour.bad::before{background:linear-gradient(180deg,#8799aa,#e7eef5)!important}
+
+/* Weather icon circle remains neutral; SVG itself shows actual weather */
+.hourWeatherIcon{
+  width:58px!important;
+  height:58px!important;
+  border-radius:50%!important;
+  background:radial-gradient(circle at 38% 30%,rgba(255,255,255,.96),rgba(199,239,255,.86) 64%,rgba(133,217,240,.58))!important;
+  box-shadow:0 10px 20px rgba(0,85,115,.12),inset 0 1px 0 rgba(255,255,255,.92)!important;
+}
+.hourWeatherIcon img{
+  width:47px!important;
+  height:47px!important;
+}
+
+/* Evaluation label: always fully visible */
+.hourMain{
+  min-width:0!important;
+  overflow:visible!important;
+}
+.hourMain b{
+  display:block!important;
+  font-size:23px!important;
+  line-height:1.02!important;
+  white-space:nowrap!important;
+  overflow:visible!important;
+  text-overflow:clip!important;
+  letter-spacing:-.04em!important;
+}
+.hourMain small{
+  display:block!important;
+  margin-top:6px!important;
+  white-space:nowrap!important;
+  overflow:visible!important;
+  text-overflow:clip!important;
+}
+.hour.great .hourMain b{color:#f15c12!important}
+.hour.good .hourMain b{color:#008f96!important}
+.hour.ok .hourMain b{color:#ef6a16!important}
+.hour.bad .hourMain b{color:#526577!important}
+
+/* Data pills: no ellipsis, enough space */
+.hourChips{
+  grid-template-columns:repeat(2,minmax(76px,1fr))!important;
+  gap:7px!important;
+}
+.hourChips span{
+  min-width:76px!important;
+  white-space:nowrap!important;
+  overflow:visible!important;
+  text-overflow:clip!important;
+  font-size:11.2px!important;
+  letter-spacing:-.03em!important;
+  padding:8px 6px!important;
+}
+
+/* Remove accidental duplicate pseudo icons from older overrides */
+.hourChips span:nth-child(1)::before{content:""!important}
+.hourChips span:nth-child(2)::before{content:""!important}
+.hourChips span:nth-child(3)::before{content:""!important}
+.hourChips span:nth-child(4)::before{content:""!important}
+
+/* Metric tiles: stronger but cleaner */
+.quickGrid div{
+  background:linear-gradient(180deg,rgba(255,255,255,.97),rgba(255,248,230,.92))!important;
+}
+.quickGrid strong{
+  font-size:27px!important;
+}
+
+/* Small screens: prioritize full values over one-line compactness */
+@media(max-width:390px){
+  .hero h2{font-size:49px!important}
+  .hour{
+    grid-template-columns:55px 54px minmax(88px,1fr)!important;
+    min-height:126px!important;
+  }
+  .hourChips{
+    grid-column:1 / -1!important;
+    grid-template-columns:repeat(4,minmax(0,1fr))!important;
+  }
+  .hourChips span{
+    min-width:0!important;
+    font-size:10.5px!important;
+    padding:7px 3px!important;
+  }
+}
+@media(max-width:360px){
+  .hour{
+    min-height:144px!important;
+  }
+  .hourChips{
+    grid-template-columns:repeat(2,minmax(0,1fr))!important;
+  }
+}
