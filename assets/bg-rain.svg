@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 1440" preserveAspectRatio="xMidYMid slice">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#7794aa"/><stop offset=".42" stop-color="#a7bac9"/><stop offset=".68" stop-color="#8fb4c2"/><stop offset="1" stop-color="#cfc8bd"/></linearGradient>
+    <linearGradient id="sea" x1="0" x2="1"><stop stop-color="#6f99aa"/><stop offset=".6" stop-color="#5f8798"/><stop offset="1" stop-color="#9db8c0"/></linearGradient>
+    <linearGradient id="sand" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#cfc7bb"/><stop offset="1" stop-color="#a9a39c"/></linearGradient>
+    <filter id="blur"><feGaussianBlur stdDeviation="10"/></filter>
+  </defs>
+  <rect width="720" height="1440" fill="url(#sky)"/>
+  <g fill="#d9e1e7" opacity=".35" filter="url(#blur)"><ellipse cx="160" cy="150" rx="260" ry="68"/><ellipse cx="450" cy="260" rx="290" ry="82"/><ellipse cx="250" cy="430" rx="230" ry="55"/></g>
+  <g stroke="#d8e5ed" stroke-width="2" opacity=".26"><path d="M90 120 L30 260"/><path d="M210 70 L145 230"/><path d="M520 120 L455 286"/><path d="M650 250 L594 390"/><path d="M360 340 L312 480"/><path d="M120 540 L65 700"/><path d="M620 580 L560 740"/></g>
+  <path d="M0 690 C150 654 286 696 440 664 C565 638 642 650 720 630 V942 H0Z" fill="url(#sea)"/>
+  <path d="M0 850 C170 812 318 866 500 820 C602 798 675 810 720 790 V1440 H0Z" fill="url(#sand)"/>
+  <path d="M0 898 C152 848 294 902 474 866 C590 842 660 850 720 832" fill="none" stroke="#dfeaf0" stroke-width="16" opacity=".55"/>
+  <g transform="translate(595 250) rotate(12)">
+    <path d="M18 18 C55 82 76 188 65 335" stroke="#3d2c22" stroke-width="14" stroke-linecap="round" fill="none" opacity=".75"/>
+    <g fill="#1c5d4d" opacity=".74"><path d="M28 26 C-68 6 -124 46 -172 100 C-78 92 -20 68 28 26"/><path d="M35 28 C-12 -48 -92 -72 -172 -50 C-96 -12 -36 16 35 28"/><path d="M42 24 C112 -28 180 -22 244 7 C162 25 96 28 42 24"/><path d="M40 32 C120 52 176 98 214 160 C130 128 76 88 40 32"/></g>
+  </g>
+  <rect width="720" height="1440" fill="#263f55" opacity=".14"/>
+</svg>
