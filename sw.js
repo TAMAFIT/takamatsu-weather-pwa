@@ -1,4 +1,4 @@
-const CACHE_NAME = 'takamatsu-weather-checker-mock-ui-v2';
+const CACHE_NAME = 'takamatsu-weather-checker-mock-ui-v3';
 const FILES = [
   './',
   './index.html',
@@ -6,6 +6,15 @@ const FILES = [
   './app.js',
   './manifest.webmanifest',
   './icons/icon.svg',
+  './icons/weather-sun.svg',
+  './icons/weather-sun-cloud.svg',
+  './icons/weather-cloud-sun.svg',
+  './icons/weather-cloud.svg',
+  './icons/weather-rain.svg',
+  './icons/metric-sun.svg',
+  './icons/metric-flower.svg',
+  './icons/metric-rain.svg',
+  './icons/metric-wave.svg',
   './assets/bg-sunny.webp',
   './assets/bg-cloudy.webp',
   './assets/bg-rain.webp',

@@ -1,16 +1,20 @@
-# 高松天気チェッカー mock UI v2
+# 高松天気チェッカー mock UI v3
 
-モック画像にさらに寄せたリゾートUI版です。
+v2の実機確認で出た問題を修正した版です。
 
-## 変更点
+## 修正内容
 
-- ロジック/API取得は維持
-- 4指標カードを白く立体的に強化
-- おすすめ時間バーをターコイズで強化
-- 1時間ごとのカードをカラフル化
-- 大きい丸型天気アイコンを追加
-- 背景は生成画像WebPを使用
-- 夜背景は今日を見ている時だけ
+- 1時間カード右端の矢印を削除
+- 雲 / 日照 / UV / 雨 の数値が `...` になりにくいレイアウトへ変更
+- 評価ごとに1時間カードの天気アイコンを変更
+  - 最高: 太陽
+  - 良い: 太陽＋小さい雲
+  - 微妙: 雲が強い太陽
+  - 弱い: 曇り/雨系
+- 1時間判定のしきい値を少し現実寄りに調整
+- 4指標カードを白く強めに調整
+- 絵文字装飾を減らし、一部SVGアイコン化
+- 背景WebP、API取得、9:00〜17:00判定、夜背景は今日だけ、は維持
 
 ## GitHub上で残すファイル
 
@@ -24,20 +28,6 @@
 - style.css
 - sw.js
 
-## 削除してよい旧ファイル
-
-- assets_micro/
-- assets_small/
-- assets_tiny/
-- enhancements.css
-- enhancements.js
-- v5.css
-- v5.js
-- v8.css
-- v9.js
-- theme.js
-- README.md
-
 ## 確認URL
 
-https://TAMAFIT.github.io/takamatsu-weather-pwa/?v=mock-ui2
+https://TAMAFIT.github.io/takamatsu-weather-pwa/?v=mock-ui3

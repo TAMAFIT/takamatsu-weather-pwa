@@ -20,20 +20,16 @@
     <header class="header">
       <div class="titleBlock">
         <p class="eyebrow"><span aria-hidden="true">📍</span> 高松・日焼け/海判断</p>
-        <h1>高松天気チェッカー <span aria-hidden="true">🌺</span></h1>
+        <h1>高松天気チェッカー</h1>
       </div>
       <button id="refreshBtn" class="refresh" type="button"><span aria-hidden="true">↻</span> 更新</button>
     </header>
 
     <main>
       <section class="hero" id="hero">
-        <div class="heroDecor" aria-hidden="true">
-          <span class="decoFlower">🌼</span>
-          <span class="decoPalm">🌴</span>
-          <span class="decoWaves"></span>
-        </div>
+        <div class="heroDecor" aria-hidden="true"><span class="decoWaves"></span></div>
 
-        <div class="heroDate"><span aria-hidden="true">🌼</span><strong id="selectedDate">--</strong></div>
+        <div class="heroDate"><span class="miniMark" aria-hidden="true">✦</span><strong id="selectedDate">--</strong></div>
 
         <div class="heroJudgement">
           <span id="gradeMark" class="gradeMark">--</span>
@@ -47,10 +43,10 @@
         <div class="meter" aria-label="海日和スコア"><span id="scoreMeter"></span></div>
 
         <div class="quickGrid">
-          <div><span class="tileIcon">☀️</span><small>晴れ継続</small><strong id="sunnyHours">--</strong></div>
-          <div><span class="tileIcon">🌺</span><small>日焼け</small><strong id="tanLevel">--</strong></div>
-          <div><span class="tileIcon">🌧️</span><small>雨</small><strong id="rainLevel">--</strong></div>
-          <div><span class="tileIcon">🌊</span><small>風/波</small><strong id="seaLevel">--</strong></div>
+          <div><img class="tileIcon tileSvg" src="./icons/metric-sun.svg" alt="" /><small>晴れ継続</small><strong id="sunnyHours">--</strong></div>
+          <div><img class="tileIcon tileSvg" src="./icons/metric-flower.svg" alt="" /><small>日焼け</small><strong id="tanLevel">--</strong></div>
+          <div><img class="tileIcon tileSvg" src="./icons/metric-rain.svg" alt="" /><small>雨</small><strong id="rainLevel">--</strong></div>
+          <div><img class="tileIcon tileSvg" src="./icons/metric-wave.svg" alt="" /><small>風/波</small><strong id="seaLevel">--</strong></div>
         </div>
 
         <div class="bestBox">
@@ -61,7 +57,7 @@
 
       <section class="card hourCard">
         <div class="sectionHead">
-          <h3><span aria-hidden="true">🌺</span> 1時間ごとの海日和</h3>
+          <h3>1時間ごとの海日和</h3>
           <span>≧ 9:00〜17:00 ≦</span>
         </div>
         <div id="hourList" class="hourList"><p class="note">データ取得中です。</p></div>
