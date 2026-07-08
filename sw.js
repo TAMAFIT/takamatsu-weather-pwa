@@ -1,4 +1,4 @@
-const CACHE_NAME = 'takamatsu-weather-checker-mock-ui-v4';
+const CACHE_NAME = 'takamatsu-weather-checker-mock-ui-v5';
 const FILES = [
   './',
   './index.html',

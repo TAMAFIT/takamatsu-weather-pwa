@@ -722,3 +722,123 @@ h1{margin:0;font-size:25px;line-height:1.08;letter-spacing:-.07em;color:white;fo
     grid-template-columns:repeat(2,minmax(0,1fr))!important;
   }
 }
+
+
+/* =========================================================
+   v5 semantic refinement:
+   - 微妙 -> 普通
+   - icon = weather appearance from cloud/sunshine
+   - card color = evaluation
+   - hourly chips always visible on their own row
+   ========================================================= */
+
+.hour{
+  grid-template-columns:62px 62px minmax(0,1fr)!important;
+  grid-template-rows:auto auto!important;
+  min-height:126px!important;
+  padding:11px 12px 12px 10px!important;
+  column-gap:9px!important;
+  row-gap:8px!important;
+  align-items:center!important;
+}
+.hour::after{
+  content:none!important;
+  display:none!important;
+}
+.hourChips{
+  grid-column:1 / -1!important;
+  grid-template-columns:repeat(4,minmax(0,1fr))!important;
+  gap:7px!important;
+}
+.hourChips span{
+  min-width:0!important;
+  width:100%!important;
+  overflow:visible!important;
+  text-overflow:clip!important;
+  white-space:nowrap!important;
+  font-size:11.2px!important;
+  padding:8px 4px!important;
+  letter-spacing:-.04em!important;
+}
+.hourTime strong{
+  font-size:20px!important;
+}
+.hourWeatherIcon{
+  width:60px!important;
+  height:60px!important;
+}
+.hourWeatherIcon img{
+  width:48px!important;
+  height:48px!important;
+}
+.hourMain{
+  min-width:0!important;
+  padding-left:2px!important;
+}
+.hourMain b{
+  font-size:24px!important;
+  white-space:nowrap!important;
+  overflow:visible!important;
+  text-overflow:clip!important;
+}
+.hourMain small{
+  font-size:14px!important;
+  white-space:nowrap!important;
+  overflow:visible!important;
+  text-overflow:clip!important;
+}
+
+/* Evaluation colors */
+.hour.great{
+  background:linear-gradient(90deg,rgba(255,247,205,.98),rgba(255,255,255,.94))!important;
+  border-color:rgba(255,201,52,.84)!important;
+}
+.hour.good{
+  background:linear-gradient(90deg,rgba(218,255,252,.98),rgba(255,255,255,.94))!important;
+  border-color:rgba(65,214,213,.78)!important;
+}
+.hour.ok{
+  background:linear-gradient(90deg,rgba(255,253,246,.98),rgba(255,255,255,.94))!important;
+  border-color:rgba(226,214,188,.78)!important;
+}
+.hour.bad{
+  background:linear-gradient(90deg,rgba(232,241,248,.98),rgba(255,255,255,.92))!important;
+  border-color:rgba(155,176,194,.66)!important;
+}
+.hour.great::before{background:linear-gradient(180deg,#ffc42e,#fff0a7)!important}
+.hour.good::before{background:linear-gradient(180deg,#2fd6d0,#cbfff6)!important}
+.hour.ok::before{background:linear-gradient(180deg,#e6d7aa,#fff7df)!important}
+.hour.bad::before{background:linear-gradient(180deg,#8799aa,#e7eef5)!important}
+.hour.great .hourMain b{color:#f15c12!important}
+.hour.good .hourMain b{color:#008f96!important}
+.hour.ok .hourMain b{color:#756640!important}
+.hour.bad .hourMain b{color:#526577!important}
+.hour.great .hourTime strong{color:#ef6a10!important}
+.hour.good .hourTime strong{color:#008997!important}
+.hour.ok .hourTime strong{color:#8a7245!important}
+.hour.bad .hourTime strong{color:#526577!important}
+
+/* Weather icon circle: neutral base, not evaluation-coded too strongly */
+.hourWeatherIcon{
+  background:radial-gradient(circle at 38% 30%,rgba(255,255,255,.98),rgba(203,241,255,.84) 64%,rgba(133,217,240,.50))!important;
+}
+.hour.ok .hourWeatherIcon{
+  background:radial-gradient(circle at 38% 30%,rgba(255,255,255,.98),rgba(245,238,220,.86) 64%,rgba(226,210,174,.48))!important;
+}
+.hour.bad .hourWeatherIcon{
+  background:radial-gradient(circle at 38% 30%,rgba(255,255,255,.98),rgba(219,230,239,.86) 64%,rgba(170,186,202,.52))!important;
+}
+
+/* Small screens: preserve numbers, allow two-by-two chips */
+@media(max-width:360px){
+  .hour{
+    min-height:148px!important;
+  }
+  .hourChips{
+    grid-template-columns:repeat(2,minmax(0,1fr))!important;
+  }
+  .hourChips span{
+    font-size:11px!important;
+    padding:8px 5px!important;
+  }
+}

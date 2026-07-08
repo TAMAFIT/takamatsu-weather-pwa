@@ -1,6 +1,6 @@
 (() => {
   'use strict';
-  const CFG={lat:34.3428,lon:134.0466,marineLat:34.35,marineLon:134.05,tz:'Asia/Tokyo',days:16,startHour:9,endHour:17,cacheKey:'takamatsu-sea-weather:v10-ui4',logKey:'takamatsu-sea-weather:logs'};
+  const CFG={lat:34.3428,lon:134.0466,marineLat:34.35,marineLon:134.05,tz:'Asia/Tokyo',days:16,startHour:9,endHour:17,cacheKey:'takamatsu-sea-weather:v10-ui5',logKey:'takamatsu-sea-weather:logs'};
   const state={selectedDate:null,bundle:null,status:{forecast:'未取得',jma:'未取得',marine:'未取得',amedas:'未取得'}};
   document.addEventListener('DOMContentLoaded',()=>{try{bindStaticUi();load(false);renderLogs();registerServiceWorker()}catch(e){console.error(e);text('mainTitle','初期化失敗');text('mainReason','画面初期化でエラーが出ました。ファイルを再配置してください。')}});
   function bindStaticUi(){ $('#refreshBtn')?.addEventListener('click',()=>load(true)); $('#openLogBtn')?.addEventListener('click',()=>$('#logDialog')?.showModal()); $('#closeLogBtn')?.addEventListener('click',()=>$('#logDialog')?.close()); $('#logForm')?.addEventListener('submit',e=>{e.preventDefault();saveLog();$('#logDialog')?.close()}); const b='https://www.jma.go.jp/bosai'; $('#nowcastLink').href=`${b}/nowc/#lat:${CFG.lat}/lon:${CFG.lon}/zoom:11/colordepth:normal/elements:hrpns&slmcs`; $('#himawariLink').href=`${b}/map.html#6/${CFG.lat}/${CFG.lon}/&elem=ir&contents=himawari`; }
@@ -30,7 +30,7 @@
     if((row.code===0||row.code===1)&&rainProb<30&&sunMin>=40)score+=6;
     if(row.code===2&&rainProb<35&&sunMin>=35)score+=3;
     const gradeKey=score>=68?'great':score>=48?'good':score>=30?'ok':'bad';
-    const label=gradeKey==='great'?'最高':gradeKey==='good'?'良い':gradeKey==='ok'?'微妙':'弱い';
+    const label=gradeKey==='great'?'最高':gradeKey==='good'?'良い':gradeKey==='ok'?'普通':'弱い';
     return{...row,cloud,sunMin,uv,rainProb,marine,score:clamp(score),gradeKey,label}
   }
   function judgeDay(baseRows,jmaRows,marineRows,amedas,selectedDate){
@@ -96,7 +96,7 @@
     $('#hourList').innerHTML=hours.map(h=>`<article class="hour ${h.gradeKey}">
       <div class="hourTime"><strong>${pad(h.hour)}:00</strong></div>
       <div class="hourWeatherIcon" aria-hidden="true"><img src="${hourIconSrc(h)}" alt="" /></div>
-      <div class="hourMain"><b>${h.label}</b><small>${escapeHtml(h.weather)}</small></div>
+      <div class="hourMain"><b>${h.label}</b><small>${escapeHtml(skyLabel(h))}</small></div>
       <div class="hourChips"><span>雲 ${pct(h.cloud)}</span><span>日照 ${minute(h.sunMin)}</span><span>UV ${fmt(h.uv)}</span><span>雨 ${pct(h.rainProb)}</span></div>
     </article>`).join('')
   }
@@ -118,25 +118,52 @@
     document.body.classList.add('theme-sunny');
   }
 
+  function rainyCode(code){return[51,53,55,61,63,65,80,81,82,95,96,99].includes(Number(code))}
+  function stormCode(code){return[95,96,99].includes(Number(code))}
+  function skyType(h){
+    const code=Number(h.code);
+    const cloud=Number.isFinite(Number(h.cloud))?Number(h.cloud):cloudFromWeather(code);
+    const sun=Number.isFinite(Number(h.sunMin))?Number(h.sunMin):sunFromWeather(code,h.radiation);
+    const rain=Number(h.rain||0);
+    if(stormCode(code)||rainyCode(code)||rain>0.2)return 'rain';
+    if(cloud<=18&&sun>=50)return 'sun';
+    if(cloud<=38&&sun>=40)return 'sun';
+    if(cloud<=55&&sun>=30)return 'sunCloud';
+    if(cloud<=72&&sun>=12)return 'cloudSun';
+    return 'cloud';
+  }
+  function skyLabel(h){
+    const type=skyType(h);
+    if(type==='rain')return stormCode(h.code)?'雷雨':'雨';
+    const cloud=Number.isFinite(Number(h.cloud))?Number(h.cloud):cloudFromWeather(h.code);
+    const sun=Number.isFinite(Number(h.sunMin))?Number(h.sunMin):sunFromWeather(h.code,h.radiation);
+    if(type==='sun'&&cloud<=18&&sun>=50)return '快晴';
+    if(type==='sun')return '晴れ';
+    if(type==='sunCloud')return '薄雲';
+    if(type==='cloudSun')return '雲多め';
+    return '曇り';
+  }
   function cloudFromWeather(code){code=Number(code);if(code===0)return 5;if(code===1)return 22;if(code===2)return 48;if(code===3)return 88;if([51,53,55,61,63,65,80,81,82,95,96,99].includes(code))return 92;return 75}
   function sunFromWeather(code,radiation){const rad=Number(radiation);if(Number.isFinite(rad)&&rad>0)return Math.max(0,Math.min(60,Math.round(rad/12)));code=Number(code);if(code===0)return 60;if(code===1)return 50;if(code===2)return 35;if(code===3)return 8;return 0}
   function hourIconSrc(h){
-    const code=Number(h.code);
-    if([95,96,99].includes(code))return './icons/weather-rain.svg';
-    if([51,53,55,61,63,65,80,81,82].includes(code))return './icons/weather-rain.svg';
-    if(code===0||code===1)return './icons/weather-sun.svg';
-    if(code===2)return './icons/weather-sun-cloud.svg';
-    if(code===3)return './icons/weather-cloud.svg';
+    const sky=skyType(h);
+    if(sky==='rain')return './icons/weather-rain.svg';
+    if(sky==='sun')return './icons/weather-sun.svg';
+    if(sky==='sunCloud')return './icons/weather-sun-cloud.svg';
+    if(sky==='cloudSun')return './icons/weather-cloud-sun.svg';
     return './icons/weather-cloud.svg';
   }
   function dailyIconByWeather(rows,gradeKey,rainLevel){
-    const codes=(rows||[]).map(r=>Number(r.code));
-    if(codes.some(c=>[95,96,99].includes(c)))return '⛈️';
-    if(codes.some(c=>[51,53,55,61,63,65,80,81,82].includes(c)))return '🌧️';
-    if(codes.some(c=>c===0||c===1))return gradeKey==='great'?'🏖️':'☀️';
-    if(codes.some(c=>c===2))return '🌤️';
-    if(codes.some(c=>c===3))return '☁️';
-    return rainLevel==='高'?'🌧️':gradeKey==='bad'?'☁️':'☀️';
+    const judged=(rows||[]).map(r=>({row:r,type:skyType(r)}));
+    if(judged.some(x=>x.type==='rain'))return '🌧️';
+    const sunCount=judged.filter(x=>x.type==='sun').length;
+    const sunCloudCount=judged.filter(x=>x.type==='sunCloud').length;
+    const cloudSunCount=judged.filter(x=>x.type==='cloudSun').length;
+    if(gradeKey==='great'&&sunCount>=4)return '🏖️';
+    if(sunCount>=3)return '☀️';
+    if(sunCount+sunCloudCount>=3)return '🌤️';
+    if(sunCloudCount+cloudSunCount>=3)return '⛅';
+    return '☁️';
   }
   function setLoading(v){const b=$('#refreshBtn');b.disabled=v;b.textContent=v?'取得中':'更新'} async function fetchText(url){const res=await fetch(url,{cache:'no-store'});if(!res.ok)throw new Error(`${url} ${res.status}`);return res.text()} async function fetchJson(url){const res=await fetch(url,{cache:'no-store'});if(!res.ok)throw new Error(`${url} ${res.status}`);return res.json()} function amedasTimeKey(value){const d=new Date(value);const p=new Intl.DateTimeFormat('sv-SE',{timeZone:CFG.tz,year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false}).formatToParts(d).reduce((a,x)=>(a[x.type]=x.value,a),{});return`${p.year}${p.month}${p.day}${p.hour}${p.minute}${p.second}`} function coord(v){if(Array.isArray(v))return Number(v[0])+Number(v[1]||0)/60;return Number(v)} function valueOf(v){if(Array.isArray(v))return Number(v[0]);const n=Number(v);return Number.isFinite(n)?n:null} function readCache(){try{return JSON.parse(localStorage.getItem(CFG.cacheKey))}catch{return null}} function writeCache(b){try{localStorage.setItem(CFG.cacheKey,JSON.stringify(b))}catch{}} function registerServiceWorker(){if('serviceWorker'in navigator)navigator.serviceWorker.register('./sw.js').catch(console.warn)} function toast(msg){const el=$('#toast');el.textContent=msg;el.classList.add('show');clearTimeout(toast.timer);toast.timer=setTimeout(()=>el.classList.remove('show'),1800)} function $(id){return document.getElementById(id.replace(/^#/,''))} function text(id,v){const el=$(id);if(el)el.textContent=v} function number(v,f=0){const n=Number(v);return Number.isFinite(n)?n:f} function round(v,d=0){const n=Number(v);if(!Number.isFinite(n))return null;const p=10**d;return Math.round(n*p)/p} function clamp(v){return Math.max(0,Math.min(100,Number(v)||0))} function sum(arr){return arr.filter(v=>Number.isFinite(Number(v))).reduce((a,b)=>a+Number(b),0)} function average(arr){const xs=arr.filter(v=>Number.isFinite(Number(v))).map(Number);return xs.length?sum(xs)/xs.length:100} function maximum(arr){const xs=arr.filter(v=>Number.isFinite(Number(v))).map(Number);return xs.length?Math.max(...xs):0} function fmt(v){return Number.isFinite(Number(v))?String(Math.round(Number(v)*10)/10).replace('.0',''):'-'} function pct(v){return Number.isFinite(Number(v))?`${Math.round(Number(v))}%`:'-'} function minute(v){return Number.isFinite(Number(v))?`${Math.round(Number(v))}分`:'-'} function pad(v){return String(v).padStart(2,'0')} function todayKey(){return new Intl.DateTimeFormat('sv-SE',{timeZone:CFG.tz,year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date())} function currentHour(){return Number(new Intl.DateTimeFormat('en-GB',{timeZone:CFG.tz,hour:'2-digit',hour12:false}).format(new Date()))} function isToday(d){return d===todayKey()} function weekday(d){return['日','月','火','水','木','金','土'][new Date(`${d}T00:00:00+09:00`).getDay()]} function shortDate(d){const x=new Date(`${d}T00:00:00+09:00`);return`${x.getMonth()+1}/${x.getDate()}`} function dateLabel(d){return`${shortDate(d)}（${weekday(d)}）`} function escapeHtml(v){return String(v).replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]))} function weatherText(code){return{0:'快晴',1:'晴れ',2:'一部曇り',3:'曇り',45:'霧',48:'霧氷',51:'弱い霧雨',53:'霧雨',55:'強い霧雨',61:'弱い雨',63:'雨',65:'強い雨',80:'弱いにわか雨',81:'にわか雨',82:'強いにわか雨',95:'雷雨',96:'雷雨・雹',99:'雷雨・強い雹'}[Number(code)]||'曇り'} function weatherIcon(code){code=Number(code);if(code===0)return'☀️';if(code===1)return'🌤️';if(code===2)return'⛅';if(code===3)return'☁️';if([45,48].includes(code))return'🌫️';if([51,53,55,61,63,65,80,81,82].includes(code))return'🌧️';if([95,96,99].includes(code))return'⛈️';return'☁️'}
 })();
