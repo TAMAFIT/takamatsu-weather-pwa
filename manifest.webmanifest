@@ -1,14 +1,14 @@
 {
-  "name": "高松 海日和",
-  "short_name": "海日和",
+  "name": "高松天気チェッカー",
+  "short_name": "高松天気",
   "description": "高松の晴れ・雲量・日照・雨・風・海況から、海に行くべきかを判定するPWAです。",
   "lang": "ja-JP",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
   "orientation": "portrait",
-  "background_color": "#f3f8fd",
-  "theme_color": "#1677e8",
+  "background_color": "#c9f3ff",
+  "theme_color": "#00a7c8",
   "icons": [
     {
       "src": "./icons/icon.svg",
