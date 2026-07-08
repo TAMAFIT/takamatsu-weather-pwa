@@ -10,17 +10,17 @@ const EXT = {
   tableUrl: 'https://www.jma.go.jp/bosai/amedas/const/amedastable.json'
 };
 
-const extState = { amedas: null, selectedSky: null, selectedTan: null, patchingTable: false };
+const extState = { amedas: null, selectedSky: null, selectedTan: null, patchingTable: false, wrapped: false };
 
 document.addEventListener('DOMContentLoaded', () => {
   setupOfficialLinks();
+  setupCollapsibleSections();
   setupAmedas();
   setupLogs();
   scheduleForecastPatch();
   document.getElementById('refreshButton')?.addEventListener('click', () => setTimeout(() => { fetchAmedas(); scheduleForecastPatch(); }, 1600));
   document.getElementById('amedasRefresh')?.addEventListener('click', fetchAmedas);
   document.getElementById('weeklyList')?.addEventListener('click', () => setTimeout(scheduleForecastPatch, 120));
-
   const tbody = document.getElementById('hourlyTableBody');
   if (tbody) {
     const observer = new MutationObserver(() => {
@@ -29,6 +29,24 @@ document.addEventListener('DOMContentLoaded', () => {
     observer.observe(tbody, { childList: true });
   }
 });
+
+function setupCollapsibleSections() {
+  if (extState.wrapped) return;
+  extState.wrapped = true;
+  wrapSection('.official-card', '公式確認・雨雲/雲画像');
+  wrapSection('.log-card', '実際の空を記録する');
+}
+function wrapSection(selector, label) {
+  const section = document.querySelector(selector);
+  if (!section || section.closest('details')) return;
+  const details = document.createElement('details');
+  details.className = 'collapse-block';
+  const summary = document.createElement('summary');
+  summary.textContent = label;
+  section.parentNode.insertBefore(details, section);
+  details.appendChild(summary);
+  details.appendChild(section);
+}
 
 function setupOfficialLinks() {
   setHref('nowcastLink', `https://www.jma.go.jp/bosai/nowc/#lat:${EXT.lat}/lon:${EXT.lon}/zoom:11/colordepth:normal/elements:hrpns&slmcs`);
@@ -84,7 +102,7 @@ function parseAmedasObservation(station, obs, date) {
   return { id: station.id, name: station.station.kjName || station.station.enName || station.id, distance: station.distance, time: date.toISOString(), sun1h: valueOf(obs, 'sun1h'), rain1h: valueOf(obs, 'precipitation1h'), temp: valueOf(obs, 'temp'), humidity: valueOf(obs, 'humidity'), windDirection, windSpeed };
 }
 function renderAmedas(obs) {
-  setText('amedasStatus', `観測時刻 ${formatDateTime(obs.time)} / 約${obs.distance.toFixed(1)}kmの観測点`);
+  setText('amedasStatus', `観測 ${formatDateTime(obs.time)} / 約${obs.distance.toFixed(1)}km`);
   setText('amedasStation', obs.name);
   setText('amedasSun', obs.sun1h == null ? '-' : `${obs.sun1h.toFixed(1)}h`);
   setText('amedasRain', obs.rain1h == null ? '-' : `${obs.rain1h.toFixed(1)}mm`);
@@ -94,25 +112,42 @@ function renderAmedas(obs) {
   setText('amedasCorrection', amedasCorrectionText(obs));
 }
 function amedasCorrectionText(obs) {
-  if (obs.sun1h != null && obs.sun1h <= 0.1 && (obs.rain1h == null || obs.rain1h <= 0)) return '直近1時間の日照がほぼありません。晴れ予報でも、現地は曇り寄りとして判断します。';
-  if (obs.sun1h != null && obs.sun1h >= 0.7 && (obs.rain1h == null || obs.rain1h <= 0)) return '直近1時間の日照があります。日焼け判断では予報より実測をやや優先できます。';
-  if (obs.rain1h != null && obs.rain1h > 0) return '直近1時間に降水があります。日焼け目的なら様子見が安全です。';
-  return '実測値を予報に重ねて判断します。日照が弱い時は晴れ表示を過信しません。';
+  if (obs.sun1h != null && obs.sun1h <= 0.1 && (obs.rain1h == null || obs.rain1h <= 0)) return '実測日照ほぼなし。晴れ予報でも曇り寄り。';
+  if (obs.sun1h != null && obs.sun1h >= 0.7 && (obs.rain1h == null || obs.rain1h <= 0)) return '実測日照あり。日焼け判断では予報より実測をやや優先。';
+  if (obs.rain1h != null && obs.rain1h > 0) return '直近降水あり。日焼け目的なら様子見。';
+  return '実測を重ねて補正中。晴れ表示だけで判断しません。';
 }
 
-function scheduleForecastPatch() { setTimeout(patchHourlyTableForSun, 260); setTimeout(renderLogSummary, 320); }
-function patchHourlyTableForSun() {
+function scheduleForecastPatch() { setTimeout(patchHourlyCardsForSun, 260); setTimeout(renderLogSummary, 320); }
+function patchHourlyCardsForSun() {
   const bundle = readWeatherBundle(); if (!bundle?.base?.hourly?.length) return;
   const activeDate = document.querySelector('.daily-card.is-active')?.dataset.date || bundle.base.daily?.[0]?.date;
   const rows = bundle.base.hourly.filter((x) => x.date === activeDate && [0,3,6,9,12,15,18,21].includes(x.hour));
-  const table = document.querySelector('.hourly-table'), tbody = document.getElementById('hourlyTableBody');
-  if (!rows.length || !table || !tbody) return;
-  const head = table.querySelector('thead');
-  if (head) head.innerHTML = '<tr><th>時刻</th><th>日差し判定</th><th>雲量</th><th>日照</th><th>UV</th><th>降水</th><th>総合</th></tr>';
+  const tableWrap = document.querySelector('.hourly-table-wrap');
+  if (!rows.length || !tableWrap) return;
+  let cards = document.getElementById('hourlyCards');
+  if (!cards) {
+    cards = document.createElement('div');
+    cards.id = 'hourlyCards';
+    cards.className = 'hourly-cards';
+    tableWrap.parentNode.insertBefore(cards, tableWrap);
+  }
   extState.patchingTable = true;
-  tbody.innerHTML = rows.map((row) => {
+  cards.innerHTML = rows.map((row) => {
     const adjusted = adjustedSunJudge(sunJudge(row), row, extState.amedas);
-    return `<tr><td>${String(row.hour).padStart(2, '0')}:00</td><td><span class="sun-badge ${adjusted.className}">${escapeHtml(adjusted.label)}</span><br><span class="source-note">${escapeHtml(row.weatherText || '-')}</span></td><td>${formatPercent(row.cloudCover)}</td><td>${formatMinutes(row.sunshineMinutes)}</td><td>${formatNumber(row.uvIndex)}</td><td>${formatProbability(row.precipitationProbability)} / ${Number(row.precipitation || 0).toFixed(1)}mm</td><td>${escapeHtml(adjusted.reason)}</td></tr>`;
+    return `<article class="hour-card">
+      <div class="hour-card-main">
+        <div><div class="hour-card-time">${String(row.hour).padStart(2, '0')}:00</div><div class="hour-card-weather">${escapeHtml(row.weatherText || '-')}</div></div>
+        <div class="hour-card-judge"><span class="sun-badge ${adjusted.className}">${escapeHtml(adjusted.label)}</span></div>
+      </div>
+      <div class="hour-card-grid">
+        <div class="hour-metric"><span>雲量</span><strong>${formatPercent(row.cloudCover)}</strong></div>
+        <div class="hour-metric"><span>日照</span><strong>${formatMinutes(row.sunshineMinutes)}</strong></div>
+        <div class="hour-metric"><span>UV</span><strong>${formatNumber(row.uvIndex)}</strong></div>
+        <div class="hour-metric"><span>降水</span><strong>${formatProbability(row.precipitationProbability)}</strong></div>
+      </div>
+      <div class="hour-card-reason">${escapeHtml(adjusted.reason)} / ${Number(row.precipitation || 0).toFixed(1)}mm</div>
+    </article>`;
   }).join('');
   setTimeout(() => { extState.patchingTable = false; }, 200);
 }
@@ -163,7 +198,7 @@ function renderLogSummary() {
   if (!logs.length) { summary.textContent = 'まだ記録がありません。晴れ予報なのに曇った時ほど記録価値があります。'; recent.innerHTML = ''; return; }
   const failed = logs.filter((x) => ['曇り','雨'].includes(x.sky) || ['微妙','無理'].includes(x.tanResult)).length;
   const sunny = logs.filter((x) => x.sky === '晴れ' || x.tanResult === 'できた').length;
-  summary.textContent = `記録 ${logs.length}件 / 日差し成功 ${sunny}件 / 外れ・微妙 ${failed}件。今後はこのログをもとに高松用の補正を強められます。`;
+  summary.textContent = `記録 ${logs.length}件 / 日差し成功 ${sunny}件 / 外れ・微妙 ${failed}件。ログをためるほど高松用補正が作れます。`;
   recent.innerHTML = logs.slice(0, 5).map((log) => `<div class="recent-log"><strong>${formatDateTime(log.createdAt)}：${escapeHtml(log.sky)} / ${escapeHtml(log.tanResult)}</strong><span>雲量 ${avg(log.forecast.map((x) => x.cloud))}%・日照 ${avg(log.forecast.map((x) => x.sunshine))}分・UV ${avg(log.forecast.map((x) => x.uv))}</span></div>`).join('');
 }
 function exportLogsCsv() {
