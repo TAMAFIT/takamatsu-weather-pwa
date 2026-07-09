@@ -1,6 +1,6 @@
 (() => {
   'use strict';
-  const CFG={lat:34.3428,lon:134.0466,marineLat:34.35,marineLon:134.05,tz:'Asia/Tokyo',days:16,startHour:9,endHour:17,cacheKey:'takamatsu-sea-weather:v10-ui6-5-3',logKey:'takamatsu-sea-weather:logs',appVersion:'v6.5.3-temp-pill-fix',historyKey:'takamatsu-sea-weather:forecast-history-v1',autoKey:'takamatsu-sea-weather:auto-verification-v1',legacyCacheKeys:['takamatsu-sea-weather:v10-ui6-2-1','takamatsu-sea-weather:v10-ui6-2','takamatsu-sea-weather:v10-ui6-1','takamatsu-sea-weather:v10-ui6','takamatsu-sea-weather:v10-ui5','takamatsu-sea-weather:v10-ui4','takamatsu-sea-weather:v2-1:last-success']};
+  const CFG={lat:34.3428,lon:134.0466,marineLat:34.35,marineLon:134.05,tz:'Asia/Tokyo',days:16,startHour:9,endHour:17,cacheKey:'takamatsu-sea-weather:v10-ui6-5-6',logKey:'takamatsu-sea-weather:logs',appVersion:'v6.5.6-sun-strength',historyKey:'takamatsu-sea-weather:forecast-history-v1',autoKey:'takamatsu-sea-weather:auto-verification-v1',legacyCacheKeys:['takamatsu-sea-weather:v10-ui6-2-1','takamatsu-sea-weather:v10-ui6-2','takamatsu-sea-weather:v10-ui6-1','takamatsu-sea-weather:v10-ui6','takamatsu-sea-weather:v10-ui5','takamatsu-sea-weather:v10-ui4','takamatsu-sea-weather:v2-1:last-success']};
   const state={selectedDate:null,bundle:null,status:{forecast:'未取得',jma:'未取得',marine:'未取得',amedas:'未取得',satellite:'未取得',runs:'未取得'}};
   const nativeFetch=window.fetch.bind(window);
   window.fetch=async(input,init)=>{
@@ -399,11 +399,47 @@
   }
   function renderHours(hours){
     $('#hourList').innerHTML=hours.map(h=>`<article class="hour ${h.gradeKey}">
-      <div class="hourTime"><strong>${pad(h.hour)}:00</strong></div>
+      <div class="hourTime"><strong>${pad(h.hour)}:00</strong><small class="hourTemp">${hourTempText(h)}</small></div>
       <div class="hourWeatherIcon" aria-hidden="true"><img src="${hourIconSrc(h)}" alt="" /></div>
-      <div class="hourMain"><b>${h.label}</b><small>${escapeHtml(skyLabel(h))}</small><small class="hourTemp">${hourTempText(h)}</small></div>
-      <div class="hourChips"><span>雲 ${pct(h.cloud)}</span><span>日照 ${minute(h.sunMin)}</span><span>UV ${fmt(h.uv)}</span><span>雨 ${pct(h.rainProb)}</span></div>
+      <div class="hourMain"><b>${h.label}</b><small>${escapeHtml(skyLabel(h))}</small></div>
+      <div class="hourChips"><span>雲 ${pct(h.cloud)}</span><span>${sunStrengthText(h)}</span><span>UV ${fmt(h.uv)}</span><span>雨 ${pct(h.rainProb)}</span></div>
     </article>`).join('')
+  }
+  function sunStrengthText(h){
+    const s = sunStrength(h);
+    return `日差し ${s.label}`;
+  }
+  function sunStrength(h){
+    const sun = Number.isFinite(Number(h?.sunMin)) ? Number(h.sunMin) : sunFromWeather(h?.code, h?.radiation);
+    const uv = Number.isFinite(Number(h?.uv)) ? Number(h.uv) : 0;
+    const rad = Number.isFinite(Number(h?.radiation)) ? Number(h.radiation) : 0;
+    const cloud = Number.isFinite(Number(h?.cloud)) ? Number(h.cloud) : cloudFromWeather(h?.code);
+    const rain = Number(h?.rain || 0);
+    const rainy = isRainCode(h?.code) || rain > 0.2;
+    if (rainy) return { level:'none', label:'なし' };
+    let score = 0;
+    if (sun >= 50) score += 4;
+    else if (sun >= 35) score += 3;
+    else if (sun >= 15) score += 2;
+    else if (sun >= 5) score += 1;
+
+    if (uv >= 7) score += 3;
+    else if (uv >= 5) score += 2;
+    else if (uv >= 3) score += 1;
+
+    if (rad >= 650) score += 3;
+    else if (rad >= 450) score += 2;
+    else if (rad >= 220) score += 1;
+
+    if (cloud >= 80) score -= 3;
+    else if (cloud >= 65) score -= 2;
+    else if (cloud >= 50) score -= 1;
+    else if (cloud <= 25) score += 1;
+
+    if (score >= 8) return { level:'strong', label:'強い' };
+    if (score >= 5) return { level:'good', label:'あり' };
+    if (score >= 2) return { level:'weak', label:'弱め' };
+    return { level:'none', label:'なし' };
   }
   function hourTempText(h){
     const t=Number(h?.temp);
